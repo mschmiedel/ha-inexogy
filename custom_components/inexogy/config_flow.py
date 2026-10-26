@@ -30,7 +30,6 @@ STEP_USER_SCHEMA = vol.Schema(
         vol.Required(CONF_PASSWORD): TextSelector(
             TextSelectorConfig(type=TextSelectorType.PASSWORD, autocomplete="current-password")
         ),
-        vol.Optional(CONF_SERIES_ID): str,
     }
 )
 
@@ -53,7 +52,8 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> tuple[str | None, str | None]:
         """Return ``(series_id, error_key)``.
 
-        Without a series ID the account's default series is looked up.
+        New entries pass no series ID; the account's default series is used.
+        Re-authentication passes the ID stored in the entry.
         """
         client = InexogyClient(async_get_clientsession(self.hass), email, password)
         from_ms = int((dt_util.utcnow() - RECENT_LOOKBACK).timestamp() * 1000)
@@ -80,7 +80,7 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
             series_id, error = await self._validate(
                 user_input[CONF_EMAIL],
                 user_input[CONF_PASSWORD],
-                (user_input.get(CONF_SERIES_ID) or "").strip() or None,
+                None,
             )
             if error is None:
                 await self.async_set_unique_id(series_id)

@@ -38,11 +38,9 @@ Copy `custom_components/inexogy` into your `config/custom_components` folder and
 
 *Settings → Devices & services → Add integration → inexogy*
 
-- **Email / password** of your inexogy portal account
-- **Measurement series ID** (optional): leave it empty to use the account's default
-  meter (`defaultContainerId` from `/portal/user/settings`). Only needed for accounts
-  with several meters: it is the 32-character hex string in requests to
-  `…/portal/measurement-series/<ID>/…` (browser developer tools, network tab).
+Enter the **email and password** of your inexogy portal account.
+The measurement series is determined automatically (`defaultContainerId` from
+`/portal/user/settings`); all meters in it are added as devices.
 
 If the password changes, Home Assistant asks for the new one (re-authentication).
 
