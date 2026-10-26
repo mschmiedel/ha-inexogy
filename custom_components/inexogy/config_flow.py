@@ -48,7 +48,7 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    _meter_serial_number: str | None = None
+    _meter_serials: list[str] | None = None
 
     async def _validate(
         self, email: str, password: str, series_id: str | None
@@ -71,9 +71,9 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
         except InexogyError:
             _LOGGER.debug("Validation failed", exc_info=True)
             return series_id, "cannot_connect"
-        if not data.series:
+        if not data.meters:
             return series_id, "no_data"
-        self._meter_serial_number = data.meter_serial_number
+        self._meter_serials = list(data.meters)
         return series_id, None
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -89,7 +89,7 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(series_id)
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"inexogy {self._meter_serial_number or series_id[:8]}",
+                    title=f"inexogy {', '.join(self._meter_serials or [series_id[:8]])}",
                     data={**user_input, CONF_SERIES_ID: series_id},
                 )
             errors["base"] = error

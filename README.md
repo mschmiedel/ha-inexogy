@@ -8,6 +8,9 @@ Unofficial Home Assistant integration for smart meters read out by
 
 ## Sensors
 
+One device per meter found in the measurement series, named `inexogy <meter serial>`.
+Meters that appear later are added automatically.
+
 | Sensor | Unit | Notes |
 | --- | --- | --- |
 | Grid consumption | kWh | Meter reading (import), `total_increasing` – usable in the Energy dashboard |

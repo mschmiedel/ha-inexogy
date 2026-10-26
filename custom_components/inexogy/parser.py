@@ -5,6 +5,11 @@ Kept free of Home Assistant imports so it can be unit tested on its own.
 The portal delta-encodes its value lists: the first entry carries absolute
 numbers for ``time``, ``value`` and ``reading``, every following entry only
 the difference to its predecessor.
+
+One response can contain series of several meters. The same meter may show
+up with different serial lengths (with and without manufacturer prefix,
+e.g. ``1ABC0012345678`` and ``12345678``); those are merged into one meter
+named after the longest variant.
 """
 
 from __future__ import annotations
@@ -50,24 +55,15 @@ class Series:
 
 
 @dataclass
-class RecentData:
-    """Current values derived from the ``recent`` endpoint."""
+class MeterData:
+    """Current values of one meter."""
 
-    series: dict[tuple[str, str], Series]
+    serial_number: str
+    series: dict[tuple[str, str], Series] = field(default_factory=dict)
 
     def _latest(self, type_: str, series_type: str) -> Point | None:
         series = self.series.get((type_, series_type))
         return series.latest if series else None
-
-    @property
-    def meter_serial_number(self) -> str | None:
-        """Return the serial number reported for the meter.
-
-        Series of the same meter may report it in different lengths (with and
-        without manufacturer prefix); the longest one is the most complete.
-        """
-        serials = [s.meter_serial_number for s in self.series.values() if s.meter_serial_number]
-        return max(serials, key=len) if serials else None
 
     @property
     def consumption_energy_kwh(self) -> float | None:
@@ -116,6 +112,13 @@ class RecentData:
         return max(times) if times else None
 
 
+@dataclass
+class RecentData:
+    """Current values derived from the ``recent`` endpoint, per meter."""
+
+    meters: dict[str, MeterData]
+
+
 def decode_values(values: list[dict[str, Any]]) -> list[Point]:
     """Undo the delta encoding of a value list."""
     points: list[Point] = []
@@ -133,20 +136,42 @@ def decode_values(values: list[dict[str, Any]]) -> list[Point]:
     return points
 
 
-def parse_series(payload: list[dict[str, Any]]) -> dict[tuple[str, str], Series]:
+def parse_series(payload: list[dict[str, Any]]) -> list[Series]:
     """Parse a list of series as returned by the portal."""
-    result: dict[tuple[str, str], Series] = {}
-    for raw in payload:
-        series = Series(
+    return [
+        Series(
             type=str(raw.get("type")),
             series_type=str(raw.get("seriesType")),
-            meter_serial_number=raw.get("meterSerialNumber"),
+            meter_serial_number=raw.get("meterSerialNumber") or None,
             points=decode_values(raw.get("values") or []),
         )
-        result[(series.type, series.series_type)] = series
-    return result
+        for raw in payload
+    ]
+
+
+def _canonical_serials(serials: set[str]) -> dict[str, str]:
+    """Map every serial to the longest serial it is a suffix of."""
+    canonical: dict[str, str] = {}
+    for serial in sorted(serials, key=len, reverse=True):
+        canonical[serial] = next((c for c in canonical.values() if c.endswith(serial)), serial)
+    return canonical
 
 
 def parse_recent(payload: list[dict[str, Any]]) -> RecentData:
     """Parse the response of the ``recent`` endpoint."""
-    return RecentData(series=parse_series(payload))
+    series_list = parse_series(payload)
+    canonical = _canonical_serials(
+        {s.meter_serial_number for s in series_list if s.meter_serial_number}
+    )
+    meters: dict[str, MeterData] = {}
+    for series in series_list:
+        if series.meter_serial_number:
+            serial = canonical[series.meter_serial_number]
+        elif len(set(canonical.values())) == 1:
+            # Series without serial belong to the only meter there is.
+            serial = next(iter(canonical.values()))
+        else:
+            serial = "unknown"
+        meter = meters.setdefault(serial, MeterData(serial_number=serial))
+        meter.series[(series.type, series.series_type)] = series
+    return RecentData(meters=meters)

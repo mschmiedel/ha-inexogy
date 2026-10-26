@@ -13,14 +13,14 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfEnergy, UnitOfPower
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, meter_id
 from .coordinator import InexogyConfigEntry, InexogyCoordinator
-from .parser import RecentData
+from .parser import MeterData
 
 PARALLEL_UPDATES = 0
 
@@ -29,7 +29,7 @@ PARALLEL_UPDATES = 0
 class InexogySensorEntityDescription(SensorEntityDescription):
     """Describes an inexogy sensor."""
 
-    value_fn: Callable[[RecentData], float | datetime | None]
+    value_fn: Callable[[MeterData], float | datetime | None]
 
 
 SENSORS: tuple[InexogySensorEntityDescription, ...] = (
@@ -92,13 +92,29 @@ async def async_setup_entry(
     entry: InexogyConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up inexogy sensors."""
+    """Set up inexogy sensors, one device per meter.
+
+    Meters that show up in later updates get their entities added then.
+    """
     coordinator = entry.runtime_data
-    async_add_entities(InexogySensor(coordinator, description) for description in SENSORS)
+    known: set[str] = set()
+
+    @callback
+    def _add_new_meters() -> None:
+        new = [serial for serial in coordinator.data.meters if serial not in known]
+        known.update(new)
+        async_add_entities(
+            InexogySensor(coordinator, serial, description)
+            for serial in new
+            for description in SENSORS
+        )
+
+    _add_new_meters()
+    entry.async_on_unload(coordinator.async_add_listener(_add_new_meters))
 
 
 class InexogySensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
-    """A sensor fed by the inexogy coordinator."""
+    """A sensor for one value of one meter."""
 
     _attr_has_entity_name = True
     entity_description: InexogySensorEntityDescription
@@ -106,21 +122,33 @@ class InexogySensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
     def __init__(
         self,
         coordinator: InexogyCoordinator,
+        serial: str,
         description: InexogySensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"{coordinator.series_id}_{description.key}"
+        self._serial = serial
+        self._attr_unique_id = f"{meter_id(coordinator.series_id, serial)}_{description.key}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.series_id)},
-            name=f"inexogy {coordinator.data.meter_serial_number or coordinator.series_id[:8]}",
+            identifiers={(DOMAIN, meter_id(coordinator.series_id, serial))},
+            name=f"inexogy {serial}",
             manufacturer="inexogy",
             model="Smart meter",
-            serial_number=coordinator.data.meter_serial_number,
+            serial_number=serial,
         )
+
+    @property
+    def _meter(self) -> MeterData | None:
+        return self.coordinator.data.meters.get(self._serial)
+
+    @property
+    def available(self) -> bool:
+        """Return whether the meter is part of the latest update."""
+        return super().available and self._meter is not None
 
     @property
     def native_value(self) -> float | datetime | None:
         """Return the sensor value."""
-        return self.entity_description.value_fn(self.coordinator.data)
+        meter = self._meter
+        return self.entity_description.value_fn(meter) if meter else None

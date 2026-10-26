@@ -13,3 +13,8 @@ DEFAULT_SCAN_INTERVAL = timedelta(minutes=5)
 # How far back the "recent" endpoint is queried. The portal delivers
 # 15-minute power intervals, so a few hours are plenty.
 RECENT_LOOKBACK = timedelta(hours=3)
+
+
+def meter_id(series_id: str, serial: str) -> str:
+    """Return the ID used for a meter's device and entity unique IDs."""
+    return f"{series_id}_{serial}"

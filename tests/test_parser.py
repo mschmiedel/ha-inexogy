@@ -78,31 +78,45 @@ def test_decode_values_is_cumulative():
 
 def test_recent_values():
     data = parser.parse_recent(RECENT)
-    assert data.consumption_energy_kwh == 1234.5
-    assert data.feed_in_energy_kwh == 56.789
-    assert data.consumption_power_w == 300.0
-    assert data.feed_in_power_w == 2000.0
-    assert data.net_power_w == -1700.0
-    assert data.last_measurement == datetime.fromtimestamp((T0 + 2 * QUARTER) / 1000, tz=UTC)
-    assert data.meter_serial_number == "00000000"
+    assert list(data.meters) == ["00000000"]
+    meter = data.meters["00000000"]
+    assert meter.consumption_energy_kwh == 1234.5
+    assert meter.feed_in_energy_kwh == 56.789
+    assert meter.consumption_power_w == 300.0
+    assert meter.feed_in_power_w == 2000.0
+    assert meter.net_power_w == -1700.0
+    assert meter.last_measurement == datetime.fromtimestamp((T0 + 2 * QUARTER) / 1000, tz=UTC)
 
 
-def test_longest_serial_number_wins():
-    payload = [dict(RECENT[0], meterSerialNumber="1ABC0012345678"), RECENT[2]]
-    payload[1] = dict(payload[1], meterSerialNumber="12345678")
-    assert parser.parse_recent(payload).meter_serial_number == "1ABC0012345678"
+def test_serial_variants_are_merged():
+    # Energy series carry the serial with manufacturer prefix, power series without.
+    payload = [dict(s, meterSerialNumber="1ABC0012345678") for s in RECENT[:2]]
+    payload += [dict(s, meterSerialNumber="12345678") for s in RECENT[2:]]
+    data = parser.parse_recent(payload)
+    assert list(data.meters) == ["1ABC0012345678"]
+    meter = data.meters["1ABC0012345678"]
+    assert meter.consumption_energy_kwh == 1234.5
+    assert meter.consumption_power_w == 300.0
+
+
+def test_several_meters():
+    payload = [dict(s, meterSerialNumber="11111111") for s in RECENT]
+    payload += [dict(s, meterSerialNumber="22222222") for s in RECENT[:1]]
+    data = parser.parse_recent(payload)
+    assert sorted(data.meters) == ["11111111", "22222222"]
+    assert data.meters["11111111"].feed_in_power_w == 2000.0
+    assert data.meters["22222222"].consumption_energy_kwh == 1234.5
+    assert data.meters["22222222"].consumption_power_w is None
 
 
 def test_missing_series():
-    data = parser.parse_recent([RECENT[0]])
-    assert data.consumption_energy_kwh == 1234.5
-    assert data.feed_in_energy_kwh is None
-    assert data.consumption_power_w is None
-    assert data.net_power_w is None
-    assert data.last_measurement is None
+    meter = parser.parse_recent([RECENT[0]]).meters["00000000"]
+    assert meter.consumption_energy_kwh == 1234.5
+    assert meter.feed_in_energy_kwh is None
+    assert meter.consumption_power_w is None
+    assert meter.net_power_w is None
+    assert meter.last_measurement is None
 
 
 def test_empty_response():
-    data = parser.parse_recent([])
-    assert data.series == {}
-    assert data.meter_serial_number is None
+    assert parser.parse_recent([]).meters == {}
