@@ -30,7 +30,7 @@ STEP_USER_SCHEMA = vol.Schema(
         vol.Required(CONF_PASSWORD): TextSelector(
             TextSelectorConfig(type=TextSelectorType.PASSWORD, autocomplete="current-password")
         ),
-        vol.Required(CONF_SERIES_ID): str,
+        vol.Optional(CONF_SERIES_ID): str,
     }
 )
 
@@ -48,33 +48,43 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def _validate(self, email: str, password: str, series_id: str) -> str | None:
-        """Return an error key, or None when login and data fetch work."""
+    async def _validate(
+        self, email: str, password: str, series_id: str | None
+    ) -> tuple[str | None, str | None]:
+        """Return ``(series_id, error_key)``.
+
+        Without a series ID the account's default series is looked up.
+        """
         client = InexogyClient(async_get_clientsession(self.hass), email, password)
         from_ms = int((dt_util.utcnow() - RECENT_LOOKBACK).timestamp() * 1000)
         try:
             await client.async_login()
+            if not series_id:
+                series_id = await client.async_get_default_series_id()
+                if not series_id:
+                    return None, "no_series_id"
             data = await client.async_get_recent(series_id, from_ms)
         except InexogyAuthError:
-            return "invalid_auth"
+            return series_id, "invalid_auth"
         except InexogyError:
             _LOGGER.debug("Validation failed", exc_info=True)
-            return "cannot_connect"
+            return series_id, "cannot_connect"
         if not data.series:
-            return "no_data"
-        return None
+            return series_id, "no_data"
+        return series_id, None
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            series_id = user_input[CONF_SERIES_ID].strip()
-            await self.async_set_unique_id(series_id)
-            self._abort_if_unique_id_configured()
-            error = await self._validate(
-                user_input[CONF_EMAIL], user_input[CONF_PASSWORD], series_id
+            series_id, error = await self._validate(
+                user_input[CONF_EMAIL],
+                user_input[CONF_PASSWORD],
+                (user_input.get(CONF_SERIES_ID) or "").strip() or None,
             )
             if error is None:
+                await self.async_set_unique_id(series_id)
+                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=f"inexogy {series_id[:8]}",
                     data={**user_input, CONF_SERIES_ID: series_id},
@@ -98,7 +108,7 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
         entry = self._get_reauth_entry()
         errors: dict[str, str] = {}
         if user_input is not None:
-            error = await self._validate(
+            _, error = await self._validate(
                 entry.data[CONF_EMAIL],
                 user_input[CONF_PASSWORD],
                 entry.data[CONF_SERIES_ID],

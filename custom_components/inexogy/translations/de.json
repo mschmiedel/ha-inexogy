@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "inexogy verbinden",
-        "description": "Melde dich mit deinem inexogy-Portal-Konto an. Die Messreihen-ID ist die 32-stellige Hex-Zeichenkette in den API-Aufrufen des Portals (…/measurement-series/ID/…).",
+        "description": "Melde dich mit deinem inexogy-Portal-Konto an. Lass die Messreihen-ID leer, um den Standardzähler deines Kontos zu verwenden.",
         "data": {
           "email": "E-Mail",
           "password": "Passwort",
@@ -21,7 +21,8 @@
     "error": {
       "invalid_auth": "E-Mail oder Passwort ungültig.",
       "cannot_connect": "Das inexogy-Portal ist nicht erreichbar oder die Messreihen-ID ist falsch.",
-      "no_data": "Die Messreihe hat keine Daten geliefert."
+      "no_data": "Die Messreihe hat keine Daten geliefert.",
+      "no_series_id": "Für dieses Konto wurde keine Standard-Messreihe gefunden. Bitte gib die Messreihen-ID ein."
     },
     "abort": {
       "already_configured": "Diese Messreihe ist bereits eingerichtet.",
@@ -30,12 +31,24 @@
   },
   "entity": {
     "sensor": {
-      "consumption_energy": { "name": "Netzbezug" },
-      "feed_in_energy": { "name": "Netzeinspeisung" },
-      "consumption_power": { "name": "Netzbezugsleistung" },
-      "feed_in_power": { "name": "Einspeiseleistung" },
-      "net_power": { "name": "Netzleistung (saldiert)" },
-      "last_measurement": { "name": "Letzte Messung" }
+      "consumption_energy": {
+        "name": "Netzbezug"
+      },
+      "feed_in_energy": {
+        "name": "Netzeinspeisung"
+      },
+      "consumption_power": {
+        "name": "Netzbezugsleistung"
+      },
+      "feed_in_power": {
+        "name": "Einspeiseleistung"
+      },
+      "net_power": {
+        "name": "Netzleistung (saldiert)"
+      },
+      "last_measurement": {
+        "name": "Letzte Messung"
+      }
     }
   }
 }

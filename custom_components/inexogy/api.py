@@ -123,6 +123,14 @@ class InexogyClient:
                 raise InexogyConnectionError(f"Request to {path} failed: {err}") from err
         raise InexogyConnectionError("Unreachable")
 
+    async def async_get_default_series_id(self) -> str | None:
+        """Return the account's default measurement series ID."""
+        payload = await self._get("/user/settings", {})
+        if not isinstance(payload, dict):
+            raise InexogyConnectionError("Unexpected response format")
+        series_id = payload.get("defaultContainerId")
+        return str(series_id) if series_id else None
+
     async def async_get_recent(self, series_id: str, from_ms: int) -> RecentData:
         """Fetch current meter readings and the latest power intervals."""
         payload = await self._get(
