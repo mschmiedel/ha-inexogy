@@ -1,4 +1,4 @@
-<img src="brand/icon.png" alt="" width="96" align="right">
+<img src="custom_components/inexogy/brand/icon.png" alt="" width="96" align="right">
 
 # inexogy for Home Assistant
 
@@ -70,11 +70,9 @@ GitHub release; HACS offers it as an update.
 
 ## Icon
 
-`brand/` holds the integration icon (SVG source plus `icon.png` 256×256 and
-`icon@2x.png` 512×512). Home Assistant loads icons of custom integrations from
-[home-assistant/brands](https://github.com/home-assistant/brands); the PNGs go to
-`custom_integrations/inexogy/` there. Once that is merged, `ignore: brands` can be
-removed from `.github/workflows/validate.yml`.
+The icon ships with the integration in `custom_components/inexogy/brand/`
+(`icon.png` 256×256, `icon@2x.png` 512×512); Home Assistant 2026.3 and later
+picks it up automatically. The SVG source is `brand/icon.svg`.
 
 ## Disclaimer
 
