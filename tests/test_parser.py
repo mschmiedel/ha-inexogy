@@ -87,6 +87,12 @@ def test_recent_values():
     assert data.meter_serial_number == "00000000"
 
 
+def test_longest_serial_number_wins():
+    payload = [dict(RECENT[0], meterSerialNumber="1ABC0012345678"), RECENT[2]]
+    payload[1] = dict(payload[1], meterSerialNumber="12345678")
+    assert parser.parse_recent(payload).meter_serial_number == "1ABC0012345678"
+
+
 def test_missing_series():
     data = parser.parse_recent([RECENT[0]])
     assert data.consumption_energy_kwh == 1234.5

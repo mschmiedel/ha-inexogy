@@ -61,11 +61,13 @@ class RecentData:
 
     @property
     def meter_serial_number(self) -> str | None:
-        """Return the serial number reported for the meter."""
-        for series in self.series.values():
-            if series.meter_serial_number:
-                return series.meter_serial_number
-        return None
+        """Return the serial number reported for the meter.
+
+        Series of the same meter may report it in different lengths (with and
+        without manufacturer prefix); the longest one is the most complete.
+        """
+        serials = [s.meter_serial_number for s in self.series.values() if s.meter_serial_number]
+        return max(serials, key=len) if serials else None
 
     @property
     def consumption_energy_kwh(self) -> float | None:

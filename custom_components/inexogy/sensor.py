@@ -114,7 +114,7 @@ class InexogySensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
         self._attr_unique_id = f"{coordinator.series_id}_{description.key}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.series_id)},
-            name="inexogy smart meter",
+            name=f"inexogy {coordinator.data.meter_serial_number or coordinator.series_id[:8]}",
             manufacturer="inexogy",
             model="Smart meter",
             serial_number=coordinator.data.meter_serial_number,
