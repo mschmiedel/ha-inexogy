@@ -20,6 +20,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: InexogyConfigEntry) -> b
     coordinator = InexogyCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+
+    # Entries created before 0.3.0 were titled after the series ID; switch
+    # them to the meter serial unless the user renamed the entry.
+    serial = coordinator.data.meter_serial_number
+    if serial and entry.title == f"inexogy {coordinator.series_id[:8]}":
+        hass.config_entries.async_update_entry(entry, title=f"inexogy {serial}")
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
