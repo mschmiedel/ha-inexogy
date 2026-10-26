@@ -49,9 +49,12 @@ If the password changes, Home Assistant asks for the new one (re-authentication)
 ## How it works
 
 - Login: `POST https://api.inexogy.com/portal/auth` with email and password returns
-  an access token. The token is a JWT without verifiable signature or issuer, so it is
-  treated as an opaque bearer token. The integration logs in again shortly before the
-  token's (unverified) `exp` claim or whenever the API answers with 401.
+  an access token (about 1 h) and a refresh token (about 3 days). Both are JWTs without
+  verifiable signature or issuer, so they are treated as opaque bearer tokens; only the
+  (unverified) `exp` claim is read to renew them in time.
+- Renewal: `POST /portal/auth/refresh` with `{"token": "<refresh token>"}` returns a new
+  pair. If the refresh token is expired or rejected, the integration logs in again with
+  email and password. A 401 on a data request triggers one renewal as well.
 - Data: `GET /portal/measurement-series/<ID>/recent?from=<ms>&dimension=standard`.
 - Value lists are delta-encoded: the first entry carries absolute `time`, `value`
   and `reading`, every following entry only the difference to its predecessor.

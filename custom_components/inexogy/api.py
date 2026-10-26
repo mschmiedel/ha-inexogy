@@ -3,8 +3,11 @@
 The portal hands out JWTs on login, but this is not a real OAuth2 setup:
 there is no issuer metadata and the signature cannot be verified. The token
 is therefore treated as an opaque bearer string. Its ``exp`` claim is read
-(unverified) only to log in again shortly before it expires; a 401 response
-triggers a fresh login as well.
+(unverified) only to renew it shortly before it expires.
+
+Renewal uses the refresh token (``POST /auth/refresh``); if that is expired
+or rejected, the client logs in again with email and password. A 401
+response on a data request discards the access token and renews it once.
 """
 
 from __future__ import annotations
@@ -24,7 +27,7 @@ from .parser import RecentData, parse_recent
 _LOGGER = logging.getLogger(__name__)
 
 _TIMEOUT = aiohttp.ClientTimeout(total=30)
-# Log in again this many seconds before the access token expires.
+# Renew tokens this many seconds before they expire.
 _EXPIRY_MARGIN = 60
 
 
@@ -62,17 +65,47 @@ class InexogyClient:
         self._password = password
         self._access_token: str | None = None
         self._expires_at: float | None = None
+        self._refresh_token: str | None = None
+        self._refresh_expires_at: float | None = None
         self._lock = asyncio.Lock()
 
-    def _token_usable(self) -> bool:
-        if self._access_token is None:
+    @staticmethod
+    def _usable(token: str | None, expires_at: float | None) -> bool:
+        if token is None:
             return False
-        if self._expires_at is None:
+        if expires_at is None:
             return True
-        return time.time() < self._expires_at - _EXPIRY_MARGIN
+        return time.time() < expires_at - _EXPIRY_MARGIN
+
+    def _store_tokens(self, data: Any) -> None:
+        token = data.get("accessToken") or data.get("token") if isinstance(data, dict) else None
+        if not token:
+            raise InexogyConnectionError("Auth response contained no access token")
+        self._access_token = token
+        self._expires_at = _token_expiry(token)
+        refresh = data.get("refreshToken")
+        if refresh:
+            self._refresh_token = refresh
+            self._refresh_expires_at = _token_expiry(refresh)
+
+    async def _async_refresh(self) -> bool:
+        """Renew the access token with the refresh token; False on failure."""
+        try:
+            async with self._session.post(
+                f"{API_BASE_URL}/auth/refresh",
+                json={"token": self._refresh_token},
+                timeout=_TIMEOUT,
+            ) as resp:
+                resp.raise_for_status()
+                self._store_tokens(await resp.json(content_type=None))
+        except (InexogyError, aiohttp.ClientError, TimeoutError, ValueError) as err:
+            _LOGGER.debug("Token refresh failed, logging in again: %s", err)
+            self._refresh_token = None
+            return False
+        return True
 
     async def async_login(self) -> None:
-        """Log in and store a fresh access token."""
+        """Log in and store fresh tokens."""
         try:
             async with self._session.post(
                 f"{API_BASE_URL}/auth",
@@ -88,16 +121,17 @@ class InexogyClient:
         except (aiohttp.ClientError, TimeoutError, ValueError) as err:
             raise InexogyConnectionError(f"Login failed: {err}") from err
 
-        token = data.get("accessToken") if isinstance(data, dict) else None
-        if not token:
-            raise InexogyConnectionError("Login response contained no access token")
-        self._access_token = token
-        self._expires_at = _token_expiry(token)
+        self._store_tokens(data)
 
     async def _ensure_token(self) -> str:
         async with self._lock:
-            if not self._token_usable():
-                await self.async_login()
+            if not self._usable(self._access_token, self._expires_at):
+                refreshed = (
+                    self._usable(self._refresh_token, self._refresh_expires_at)
+                    and await self._async_refresh()
+                )
+                if not refreshed:
+                    await self.async_login()
             assert self._access_token is not None
             return self._access_token
 
