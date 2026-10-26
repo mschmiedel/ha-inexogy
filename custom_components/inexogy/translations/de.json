@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "inexogy verbinden",
+        "description": "Melde dich mit deinem inexogy-Portal-Konto an. Die Messreihen-ID ist die 32-stellige Hex-Zeichenkette in den API-Aufrufen des Portals (…/measurement-series/ID/…).",
+        "data": {
+          "email": "E-Mail",
+          "password": "Passwort",
+          "series_id": "Messreihen-ID"
+        }
+      },
+      "reauth_confirm": {
+        "title": "inexogy erneut anmelden",
+        "description": "Das Passwort für {email} wurde abgelehnt. Bitte gib das aktuelle Passwort ein.",
+        "data": {
+          "password": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "E-Mail oder Passwort ungültig.",
+      "cannot_connect": "Das inexogy-Portal ist nicht erreichbar oder die Messreihen-ID ist falsch.",
+      "no_data": "Die Messreihe hat keine Daten geliefert."
+    },
+    "abort": {
+      "already_configured": "Diese Messreihe ist bereits eingerichtet.",
+      "reauth_successful": "Erneute Anmeldung erfolgreich."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "consumption_energy": { "name": "Netzbezug" },
+      "feed_in_energy": { "name": "Netzeinspeisung" },
+      "consumption_power": { "name": "Netzbezugsleistung" },
+      "feed_in_power": { "name": "Einspeiseleistung" },
+      "net_power": { "name": "Netzleistung (saldiert)" },
+      "last_measurement": { "name": "Letzte Messung" }
+    }
+  }
+}

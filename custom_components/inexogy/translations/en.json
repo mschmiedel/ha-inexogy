@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect inexogy",
+        "description": "Log in with your inexogy portal account. The measurement series ID is the 32-character hex string in the portal's API calls (…/measurement-series/ID/…).",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "series_id": "Measurement series ID"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate inexogy",
+        "description": "The password for {email} was rejected. Please enter the current password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Could not reach the inexogy portal or the measurement series ID is wrong.",
+      "no_data": "The measurement series returned no data."
+    },
+    "abort": {
+      "already_configured": "This measurement series is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "consumption_energy": { "name": "Grid consumption" },
+      "feed_in_energy": { "name": "Grid feed-in" },
+      "consumption_power": { "name": "Grid consumption power" },
+      "feed_in_power": { "name": "Grid feed-in power" },
+      "net_power": { "name": "Net grid power" },
+      "last_measurement": { "name": "Last measurement" }
+    }
+  }
+}
