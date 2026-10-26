@@ -28,10 +28,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: InexogyConfigEntry) -> b
     if meters:
         _migrate_single_device(hass, entry, coordinator.series_id, meters[0])
 
-    # Entries created before 0.3.0 were titled after the series ID; switch
-    # them to the meter serial unless the user renamed the entry.
-    if len(meters) == 1 and entry.title == f"inexogy {coordinator.series_id[:8]}":
-        hass.config_entries.async_update_entry(entry, title=f"inexogy {meters[0]}")
+    # Entries are titled after the account; older versions used the series ID
+    # or the meter serials. Switch those unless the user renamed the entry.
+    legacy_titles = {
+        f"inexogy {coordinator.series_id[:8]}",
+        f"inexogy {', '.join(meters)}",
+        *(f"inexogy {serial}" for serial in meters),
+    }
+    if entry.title in legacy_titles:
+        hass.config_entries.async_update_entry(entry, title=entry.data[CONF_EMAIL])
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
