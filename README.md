@@ -1,3 +1,5 @@
+<img src="brand/icon.png" alt="" width="96" align="right">
+
 # inexogy for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
@@ -57,6 +59,22 @@ If the password changes, Home Assistant asks for the new one (re-authentication)
 - Value lists are delta-encoded: the first entry carries absolute `time`, `value`
   and `reading`, every following entry only the difference to its predecessor.
 - Units: energy in 10⁻¹⁰ kWh, power in mW. Feed-in power is reported negative.
+
+## Releasing
+
+1. Set `version` in `custom_components/inexogy/manifest.json` (e.g. `1.0.0`) and commit.
+2. Push a matching tag: `git tag v1.0.0 && git push origin v1.0.0`.
+
+The release workflow checks that tag and manifest version match and creates the
+GitHub release; HACS offers it as an update.
+
+## Icon
+
+`brand/` holds the integration icon (SVG source plus `icon.png` 256×256 and
+`icon@2x.png` 512×512). Home Assistant loads icons of custom integrations from
+[home-assistant/brands](https://github.com/home-assistant/brands); the PNGs go to
+`custom_integrations/inexogy/` there. Once that is merged, `ignore: brands` can be
+removed from `.github/workflows/validate.yml`.
 
 ## Disclaimer
 

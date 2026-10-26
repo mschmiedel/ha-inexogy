@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#0891B2"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E2E8F0"/>
+    </linearGradient>
+  </defs>
+  <!-- meter housing -->
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="url(#body)"/>
+  <!-- display -->
+  <rect x="76" y="80" width="360" height="200" rx="36" fill="url(#screen)"/>
+  <!-- bolt -->
+  <path d="M272 104 L184 196 H244 L224 256 L320 160 H258 Z" fill="#F59E0B"/>
+  <!-- import / export arrows -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M176 330 V430 M136 390 L176 430 L216 390"/>
+    <path d="M336 430 V330 M296 370 L336 330 L376 370"/>
+  </g>
+</svg>
