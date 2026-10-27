@@ -18,7 +18,8 @@ from homeassistant.util import dt as dt_util
 import voluptuous as vol
 
 from .api import InexogyAuthError, InexogyClient, InexogyError
-from .const import CONF_SERIES_ID, DOMAIN, RECENT_LOOKBACK
+from .const import CONF_METER_SERIAL, CONF_SERIES_ID, DOMAIN, RECENT_LOOKBACK
+from .parser import find_container_for_meter
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ STEP_USER_SCHEMA = vol.Schema(
         vol.Required(CONF_PASSWORD): TextSelector(
             TextSelectorConfig(type=TextSelectorType.PASSWORD, autocomplete="current-password")
         ),
+        vol.Optional(CONF_METER_SERIAL): str,
     }
 )
 
@@ -48,17 +50,28 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def _validate(
-        self, email: str, password: str, series_id: str | None
+        self,
+        email: str,
+        password: str,
+        series_id: str | None = None,
+        meter_serial: str | None = None,
     ) -> tuple[str | None, str | None]:
         """Return ``(series_id, error_key)``.
 
-        New entries pass no series ID; the account's default series is used.
-        Re-authentication passes the ID stored in the entry.
+        New entries pass a meter serial (container looked up via /containers)
+        or nothing (the account's default container is used). Re-authentication
+        passes the series ID stored in the entry.
         """
         client = InexogyClient(async_get_clientsession(self.hass), email, password)
         from_ms = int((dt_util.utcnow() - RECENT_LOOKBACK).timestamp() * 1000)
         try:
             await client.async_login()
+            if not series_id and meter_serial:
+                series_id = find_container_for_meter(
+                    await client.async_get_containers(), meter_serial
+                )
+                if not series_id:
+                    return None, "meter_not_found"
             if not series_id:
                 series_id = await client.async_get_default_series_id()
                 if not series_id:
@@ -80,14 +93,18 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
             series_id, error = await self._validate(
                 user_input[CONF_EMAIL],
                 user_input[CONF_PASSWORD],
-                None,
+                meter_serial=(user_input.get(CONF_METER_SERIAL) or "").strip() or None,
             )
             if error is None:
                 await self.async_set_unique_id(series_id)
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=user_input[CONF_EMAIL],
-                    data={**user_input, CONF_SERIES_ID: series_id},
+                    data={
+                        CONF_EMAIL: user_input[CONF_EMAIL],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        CONF_SERIES_ID: series_id,
+                    },
                 )
             errors["base"] = error
 

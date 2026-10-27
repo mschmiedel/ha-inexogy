@@ -14,11 +14,11 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, meter_id
+from .const import DOMAIN, meter_id, primary_meter
 from .coordinator import InexogyConfigEntry, InexogyCoordinator
 from .parser import MeterData
 from .stats import ApiStats
@@ -137,6 +137,16 @@ STATS_SENSORS: tuple[InexogyStatsSensorEntityDescription, ...] = (
 )
 
 
+def _meter_device_info(series_id: str, serial: str) -> DeviceInfo:
+    return DeviceInfo(
+        identifiers={(DOMAIN, meter_id(series_id, serial))},
+        name=f"inexogy {serial}",
+        manufacturer="inexogy",
+        model="Smart meter",
+        serial_number=serial,
+    )
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: InexogyConfigEntry,
@@ -161,9 +171,11 @@ async def async_setup_entry(
 
     _add_new_meters()
     entry.async_on_unload(coordinator.async_add_listener(_add_new_meters))
-    async_add_entities(
-        InexogyStatsSensor(coordinator, description) for description in STATS_SENSORS
-    )
+    # API statistics belong to the container; they live on its (first) meter.
+    if (serial := primary_meter(coordinator.data)) is not None:
+        async_add_entities(
+            InexogyStatsSensor(coordinator, serial, description) for description in STATS_SENSORS
+        )
 
 
 class InexogySensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
@@ -183,13 +195,7 @@ class InexogySensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
         self.entity_description = description
         self._serial = serial
         self._attr_unique_id = f"{meter_id(coordinator.series_id, serial)}_{description.key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, meter_id(coordinator.series_id, serial))},
-            name=f"inexogy {serial}",
-            manufacturer="inexogy",
-            model="Smart meter",
-            serial_number=serial,
-        )
+        self._attr_device_info = _meter_device_info(coordinator.series_id, serial)
 
     @property
     def _meter(self) -> MeterData | None:
@@ -216,18 +222,14 @@ class InexogyStatsSensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
     def __init__(
         self,
         coordinator: InexogyCoordinator,
+        serial: str,
         description: InexogyStatsSensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{coordinator.series_id}_api_{description.key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{coordinator.series_id}_api")},
-            name="inexogy API",
-            manufacturer="inexogy",
-            entry_type=DeviceEntryType.SERVICE,
-        )
+        self._attr_device_info = _meter_device_info(coordinator.series_id, serial)
 
     @property
     def available(self) -> bool:

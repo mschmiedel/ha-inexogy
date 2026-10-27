@@ -3,10 +3,11 @@
     "step": {
       "user": {
         "title": "inexogy verbinden",
-        "description": "Melde dich mit deinem inexogy-Portal-Konto an. Alle Zähler des Kontos werden hinzugefügt.",
+        "description": "Melde dich mit deinem inexogy-Portal-Konto an. Optional kannst du eine Zählernummer (z. B. 1ABC0012345678) angeben, um einen bestimmten Zähler hinzuzufügen. Bleibt das Feld leer, wird der Standardzähler deines Kontos verwendet.",
         "data": {
           "email": "E-Mail",
-          "password": "Passwort"
+          "password": "Passwort",
+          "meter_serial": "Zählernummer (optional)"
         }
       },
       "reauth_confirm": {
@@ -21,7 +22,8 @@
       "invalid_auth": "E-Mail oder Passwort ungültig.",
       "cannot_connect": "Das inexogy-Portal ist nicht erreichbar oder die Messreihen-ID ist falsch.",
       "no_data": "Die Messreihe hat keine Daten geliefert.",
-      "no_series_id": "Für dieses Konto wurde keine Messreihe gefunden."
+      "no_series_id": "Für dieses Konto wurde keine Messreihe gefunden.",
+      "meter_not_found": "In deinem Konto wurde kein Zähler mit dieser Nummer gefunden."
     },
     "abort": {
       "already_configured": "Diese Messreihe ist bereits eingerichtet.",

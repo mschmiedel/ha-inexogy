@@ -175,3 +175,41 @@ def parse_recent(payload: list[dict[str, Any]]) -> RecentData:
         meter = meters.setdefault(serial, MeterData(serial_number=serial))
         meter.series[(series.type, series.series_type)] = series
     return RecentData(meters=meters)
+
+
+# A serial without manufacturer prefix has 8 digits; shorter input must not
+# match via its ending only.
+_MIN_PARTIAL_SERIAL = 8
+
+
+def _normalize_serial(serial: str) -> str:
+    return "".join(ch for ch in serial.upper() if ch.isalnum())
+
+
+def find_container_for_meter(containers: list[dict[str, Any]], serial: str) -> str | None:
+    """Return the ID of the container holding the meter with ``serial``.
+
+    The serial may be given with or without manufacturer prefix
+    (``1ABC0012345678`` or ``12345678``); a match on the ending needs at least
+    8 characters. Returns None when no container or
+    more than one container matches.
+    """
+    wanted = _normalize_serial(serial)
+    if not wanted:
+        return None
+    exact: list[str] = []
+    partial: list[str] = []
+    for container in containers:
+        container_id = container.get("id")
+        if not container_id:
+            continue
+        for candidate in container.get("meterSerialNumbers") or []:
+            have = _normalize_serial(str(candidate))
+            if have == wanted:
+                exact.append(str(container_id))
+            elif min(len(have), len(wanted)) >= _MIN_PARTIAL_SERIAL and (
+                have.endswith(wanted) or wanted.endswith(have)
+            ):
+                partial.append(str(container_id))
+    matches = list(dict.fromkeys(exact or partial))
+    return matches[0] if len(matches) == 1 else None
