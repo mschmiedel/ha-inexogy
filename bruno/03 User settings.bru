@@ -1,0 +1,25 @@
+meta {
+  name: 03 User settings
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/user/settings
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  bru.setVar("seriesId", res.body.defaultContainerId);
+}
+
+docs {
+  Used by the integration in the config flow (`async_get_default_series_id`).
+  Only `defaultContainerId` is read. The response also contains personal data
+  (name, address, phone) - never paste it into issues unredacted.
+}

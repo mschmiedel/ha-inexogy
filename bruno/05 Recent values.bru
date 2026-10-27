@@ -1,0 +1,35 @@
+meta {
+  name: 05 Recent values
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/measurement-series/{{seriesId}}/recent?from={{from}}&dimension=standard
+  body: none
+  auth: bearer
+}
+
+params:query {
+  from: {{from}}
+  dimension: standard
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:pre-request {
+  // Same look-back as the integration: 3 hours.
+  bru.setVar("from", Date.now() - 3 * 60 * 60 * 1000);
+}
+
+docs {
+  Used by the integration on every poll (`async_get_recent`). Run "03 User settings"
+  first to fill `seriesId`.
+
+  One entry per meter and series: `type` ENERGY (current meter reading) or POWER
+  (15-minute intervals), `seriesType` CONSUMPTION or FEED. Value lists are
+  delta-encoded (first entry absolute, then differences) for `time`, `value` and
+  `reading`. Energy in 10^-10 kWh, power in mW, feed-in power negative.
+}

@@ -1,0 +1,31 @@
+meta {
+  name: 01 Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  bru.setVar("accessToken", res.body.accessToken);
+  bru.setVar("refreshToken", res.body.refreshToken);
+}
+
+docs {
+  Used by the integration (`InexogyClient.async_login`).
+
+  Returns `accessToken` (JWT, ~1 h) and `refreshToken` (JWT, ~3 days). The JWTs have
+  no verifiable signature or issuer; only the `exp` claim is read.
+  400/401/403 = credentials rejected.
+}
