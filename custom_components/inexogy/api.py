@@ -6,7 +6,9 @@ is therefore treated as an opaque bearer string. Its ``exp`` claim is read
 (unverified) only to renew it shortly before it expires.
 
 Renewal uses the refresh token (``POST /auth/refresh``); if that is expired
-or rejected, the client logs in again with email and password. A 401
+or rejected, the client logs in again with email and password. The refresh
+token can be persisted by the caller (see ``on_refresh_token_changed``) so a
+restart does not need a full login. A 401
 response on a data request discards the access token and renews it once.
 """
 
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from collections.abc import Callable
 from datetime import UTC, datetime
 import json
 import logging
@@ -79,6 +82,31 @@ class InexogyClient:
         self._refresh_token: str | None = None
         self._refresh_expires_at: float | None = None
         self._lock = asyncio.Lock()
+        # Called whenever the refresh token changes, so it can be persisted.
+        self.on_refresh_token_changed: Callable[[], None] | None = None
+
+    @property
+    def refresh_token(self) -> str | None:
+        """Return the current refresh token, if any."""
+        return self._refresh_token
+
+    def restore_refresh_token(self, token: str | None) -> None:
+        """Use a refresh token from a previous run; ignored if already expired."""
+        if not token:
+            return
+        expires_at = _token_expiry(token)
+        if not self._usable(token, expires_at):
+            return
+        self._refresh_token = token
+        self._refresh_expires_at = expires_at
+
+    def _set_refresh_token(self, token: str | None) -> None:
+        if token == self._refresh_token:
+            return
+        self._refresh_token = token
+        self._refresh_expires_at = _token_expiry(token) if token else None
+        if self.on_refresh_token_changed is not None:
+            self.on_refresh_token_changed()
 
     def _count_call(self) -> None:
         self.stats.api_calls += 1
@@ -100,8 +128,7 @@ class InexogyClient:
         self._expires_at = _token_expiry(token)
         refresh = data.get("refreshToken")
         if refresh:
-            self._refresh_token = refresh
-            self._refresh_expires_at = _token_expiry(refresh)
+            self._set_refresh_token(refresh)
 
     async def _async_refresh(self) -> bool:
         """Renew the access token with the refresh token; False on failure."""
@@ -116,7 +143,7 @@ class InexogyClient:
                 self._store_tokens(await resp.json(content_type=None))
         except (InexogyError, aiohttp.ClientError, TimeoutError, ValueError) as err:
             _LOGGER.debug("Token refresh failed, logging in again: %s", err)
-            self._refresh_token = None
+            self._set_refresh_token(None)
             return False
         self.stats.token_refreshes += 1
         return True
