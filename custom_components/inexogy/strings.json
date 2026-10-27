@@ -76,6 +76,9 @@
       },
       "last_api_call": {
         "name": "Last API call"
+      },
+      "polls_skipped": {
+        "name": "Skipped polls"
       }
     }
   }

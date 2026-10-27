@@ -20,6 +20,7 @@ class ApiStats:
     polls_new_data: int = 0
     polls_no_new_data: int = 0
     polls_failed: int = 0
+    polls_skipped: int = 0
     last_api_call: datetime | None = None
 
     @property

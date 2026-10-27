@@ -21,6 +21,9 @@ DEFAULT_SCAN_INTERVAL = timedelta(minutes=5)
 # 15-minute power intervals, so a few hours are plenty.
 RECENT_LOOKBACK = timedelta(hours=3)
 
+# Used when the response does not reveal the raster (fewer than two intervals).
+DEFAULT_MEASUREMENT_INTERVAL = timedelta(minutes=15)
+
 
 def meter_id(series_id: str, serial: str) -> str:
     """Return the ID used for a meter's device and entity unique IDs."""

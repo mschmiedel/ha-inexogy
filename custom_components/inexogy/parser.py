@@ -15,7 +15,7 @@ named after the longest variant.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 # Energy readings are delivered in 10^-10 kWh, power values in mW.
@@ -111,12 +111,37 @@ class MeterData:
         ]
         return max(times) if times else None
 
+    @property
+    def measurement_interval(self) -> timedelta | None:
+        """Spacing of the latest power intervals (usually 15 minutes)."""
+        for key in ((TYPE_POWER, SERIES_CONSUMPTION), (TYPE_POWER, SERIES_FEED)):
+            series = self.series.get(key)
+            if series and len(series.points) >= 2:
+                interval = series.points[-1].time - series.points[-2].time
+                if interval > timedelta(0):
+                    return interval
+        return None
+
 
 @dataclass
 class RecentData:
     """Current values derived from the ``recent`` endpoint, per meter."""
 
     meters: dict[str, MeterData]
+
+    def next_measurement_due(self, default_interval: timedelta) -> datetime | None:
+        """Earliest time a newer measurement can exist for any meter.
+
+        A value for measurement time T is only available after T, so after the
+        latest value T no newer one can appear before T + interval. With
+        several meters the one that is due first counts.
+        """
+        due = [
+            latest + (meter.measurement_interval or default_interval)
+            for meter in self.meters.values()
+            if (latest := meter.last_measurement) is not None
+        ]
+        return min(due) if due else None
 
 
 def decode_values(values: list[dict[str, Any]]) -> list[Point]:

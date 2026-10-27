@@ -35,14 +35,19 @@ container, so with several meters in one container they sit on the first meter.
 | Logins / Token refreshes | Full logins and successful refresh-token renewals |
 | Polls with / without new data | Whether the latest measurement time of a meter advanced |
 | Failed polls | Polls that ended in an error |
+| Skipped polls | Polls skipped because no newer measurement can exist yet (no API call) |
 | Polls per new value | Successful polls per new measurement (ideal: 1.0) |
 | New data ratio | Share of successful polls that brought new data (%) |
 | Last API call | Timestamp of the latest request; a recorder/InfluxDB keeps one entry per call |
 
 Counters survive restarts and are deleted together with the integration entry.
 
-The portal is polled every 5 minutes. Values arrive with the delay of the
-inexogy backend (typically 15 minutes or more), so this is not a real-time source.
+The portal is polled every 5 minutes, but only when a newer measurement can exist: after
+a value for 9:15 the next one cannot appear before 9:30, so polls in between are skipped
+without an API call. The faster inexogy delivers, the fewer calls are needed.
+
+Values arrive with the delay of the inexogy backend (typically 10–25 minutes), so this
+is not a real-time source.
 
 ## Installation
 

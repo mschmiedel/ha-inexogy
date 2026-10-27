@@ -13,7 +13,13 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import InexogyAuthError, InexogyClient, InexogyError
-from .const import CONF_SERIES_ID, DEFAULT_SCAN_INTERVAL, DOMAIN, RECENT_LOOKBACK
+from .const import (
+    CONF_SERIES_ID,
+    DEFAULT_MEASUREMENT_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    RECENT_LOOKBACK,
+)
 from .parser import RecentData
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,6 +87,15 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
         await self._store.async_save(self._stats_data())
 
     async def _async_update_data(self) -> RecentData:
+        # Skip polls that cannot return anything new: after the latest value T
+        # the next one cannot exist before T + interval. The faster inexogy
+        # delivers, the more polls are skipped.
+        if self.data is not None:
+            due = self.data.next_measurement_due(DEFAULT_MEASUREMENT_INTERVAL)
+            if due is not None and dt_util.utcnow() < due:
+                self.stats.polls_skipped += 1
+                self._store.async_delay_save(self._stats_data, STATS_SAVE_DELAY)
+                return self.data
         from_ms = int((dt_util.utcnow() - RECENT_LOOKBACK).timestamp() * 1000)
         try:
             data = await self.client.async_get_recent(self.series_id, from_ms)

@@ -1,6 +1,6 @@
 """Tests for the response parser (synthetic data only)."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import importlib.util
 from pathlib import Path
 import sys
@@ -144,3 +144,28 @@ def test_find_container_not_found_or_ambiguous():
     assert (
         parser.find_container_for_meter([{"meterSerialNumbers": ["12345678"]}], "12345678") is None
     )
+
+
+def test_measurement_interval_and_next_due():
+    data = parser.parse_recent(RECENT)
+    meter = data.meters["00000000"]
+    assert meter.measurement_interval == timedelta(minutes=15)
+    latest = datetime.fromtimestamp((T0 + 2 * QUARTER) / 1000, tz=UTC)
+    assert data.next_measurement_due(timedelta(minutes=30)) == latest + timedelta(minutes=15)
+
+
+def test_next_due_uses_default_and_earliest_meter():
+    # Single power point: interval unknown -> default.
+    single = [_series("POWER", "CONSUMPTION", [_entry(T0, 1)])]
+    data = parser.parse_recent(single)
+    assert data.meters["00000000"].measurement_interval is None
+    start = datetime.fromtimestamp(T0 / 1000, tz=UTC)
+    assert data.next_measurement_due(timedelta(minutes=15)) == start + timedelta(minutes=15)
+    # Two meters: the older one is due first.
+    two = [dict(s, meterSerialNumber="11111111") for s in RECENT[2:3]]
+    two += [_series("POWER", "CONSUMPTION", [_entry(T0, 1)]) | {"meterSerialNumber": "22222222"}]
+    assert parser.parse_recent(two).next_measurement_due(
+        timedelta(minutes=15)
+    ) == start + timedelta(minutes=15)
+    # No measurements at all -> always poll.
+    assert parser.parse_recent([RECENT[0]]).next_measurement_due(timedelta(minutes=15)) is None
