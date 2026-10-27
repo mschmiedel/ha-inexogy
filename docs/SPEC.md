@@ -101,6 +101,13 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
 ### Data and entities
 
 - **REQ-10** Poll `recent` every 5 minutes with a look-back of 3 hours.
+- **REQ-15** Skip a poll (no API call) while no newer measurement can exist yet: a value
+  for measurement time T is only available after T, so after the latest value T the next
+  one cannot appear before T + interval. The interval is the spacing of the latest POWER
+  points of the response (fallback 15 min); with several meters the one due first
+  counts. The first poll after start always runs. Rationale (NFR-01): skipped polls grow
+  the faster inexogy delivers – with a delivery delay of 2 min, 2 of 3 polls per interval
+  are skipped; with delays ≥ 15 min (observed for the author's meter) almost none.
 - **REQ-11** Series are grouped per meter; serial variants that are suffixes of a longer
   serial belong to that meter, named after the longest variant. Series without serial
   belong to the only meter, else to `unknown`.
@@ -127,7 +134,7 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
   (API calls are per container; usually it is the only meter), all **disabled by
   default**, always available (they also count failures):
   `api_calls`, `logins`, `token_refreshes`, `polls_new_data`, `polls_no_new_data`,
-  `polls_failed` (total_increasing), `polls_per_new_value`, `new_data_ratio` (%),
+  `polls_failed`, `polls_skipped` (total_increasing), `polls_per_new_value`, `new_data_ratio` (%),
   `last_api_call` (timestamp). Unique IDs `<series>_api_<key>`.
 - **REQ-21** A poll has *new data* if the latest measurement time of at least one meter is
   later than the one seen before. `polls_per_new_value` = successful polls / polls with
@@ -177,7 +184,7 @@ custom_components/inexogy/
 **Setup:** create client → coordinator loads stored statistics and refresh token → first
 refresh (token refresh or login, `recent`) → migrate device/entity IDs and title → forward to sensor platform.
 
-**Poll (every 5 min):** ensure token (valid / refresh / login) → `GET recent` → parse →
+**Poll (every 5 min):** skip if the next measurement is not due yet (REQ-15) → ensure token (valid / refresh / login) → `GET recent` → parse →
 compare measurement times (new data or not) → update counters, schedule save → entities
 update from the coordinator.
 
@@ -210,7 +217,9 @@ update from the coordinator.
 
 ## 8. Roadmap (not implemented)
 
-- **Adaptive polling.** First poll at measurement time + interval + X, retries after 5,
+- **Adaptive polling (optional, not planned).** REQ-15 covers the safe part. Estimating
+  inexogy's delivery delay is a cat-and-mouse game and only worth it if the statistics show
+  a clear benefit. Idea: first poll at measurement time + interval + X, retries after 5,
   10, 15 min up to the next interval; X learned per installation: per day, if the share
   of polls without new data is high, X += 30 s, if it is low, X −= 30 s, bounded.
   Exponential backoff on errors/429. Interval from `containers.measurementInterval`.

@@ -113,6 +113,7 @@ STATS_SENSORS: tuple[InexogyStatsSensorEntityDescription, ...] = (
     _counter("polls_new_data", "polls_new_data"),
     _counter("polls_no_new_data", "polls_no_new_data"),
     _counter("polls_failed", "polls_failed"),
+    _counter("polls_skipped", "polls_skipped"),
     InexogyStatsSensorEntityDescription(
         key="polls_per_new_value",
         translation_key="polls_per_new_value",
