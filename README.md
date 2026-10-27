@@ -96,11 +96,19 @@ tests, issues or pull requests. Notes for AI coding agents: [`AGENTS.md`](AGENTS
 
 ## Releasing
 
-1. Set `version` in `custom_components/inexogy/manifest.json` (e.g. `1.0.0`) and commit.
-2. Push a matching tag: `git tag v1.0.0 && git push origin v1.0.0`.
+1. Set `version` in `custom_components/inexogy/manifest.json` and merge it via pull request.
+2. Push a matching tag on `main`: `git tag v1.1.0 && git push origin v1.1.0`.
 
 The release workflow checks that tag and manifest version match and creates the
-GitHub release; HACS offers it as an update.
+GitHub release:
+
+| Tag | Release type | HACS |
+| --- | --- | --- |
+| `v1.1.0` | release | offered to everyone |
+| `v1.1.0a1`, `v1.1.0b1`, `v1.1.0rc1` | pre-release | only for users who enabled *Show beta versions* (HACS → inexogy → ⋮ → Redownload) |
+
+Other tag formats are rejected. Pre-release versions sort before the final version
+(`1.1.0rc1` < `1.1.0`), so testers move on to the final release automatically.
 
 ## Icon
 
