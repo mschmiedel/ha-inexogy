@@ -89,7 +89,14 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
   `/auth/refresh`; if the refresh token is expired or rejected, log in again. A 401/403 on
   a data request discards the access token and retries once.
 - **REQ-04** Rejected credentials start Home Assistant's re-authentication flow
-  (password only).
+  (password only). A rejected or expired refresh token alone never does; it falls back to
+  the login (REQ-03).
+- **REQ-05** The refresh token is persisted per entry in HA storage
+  (`inexogy.<entry_id>.auth`, file mode 0600) whenever it changes, and immediately on
+  unload. On setup a stored, still valid token is used first, so a restart within its
+  lifetime (~3 days) needs a refresh instead of a full login. The access token is not
+  persisted. The store is deleted with the entry; the token never appears in logs or
+  diagnostics.
 
 ### Data and entities
 
@@ -174,8 +181,8 @@ custom_components/inexogy/
 
 ### 6.2 Runtime view
 
-**Setup:** create client → coordinator loads stored statistics → first refresh (login,
-`recent`) → migrate device/entity IDs and title → forward to sensor platform.
+**Setup:** create client → coordinator loads stored statistics and refresh token → first
+refresh (token refresh or login, `recent`) → migrate device/entity IDs and title → forward to sensor platform.
 
 **Poll (every 5 min):** skip if the next measurement is not due yet (REQ-15) → ensure token (valid / refresh / login) → `GET recent` → parse →
 compare measurement times (new data or not) → update counters, schedule save → entities
@@ -193,6 +200,9 @@ update from the coordinator.
   accepts custom integrations.
 - **ADR-06** Statistics are entity counters plus HA storage, not a database; long-term
   analysis happens in the recorder/InfluxDB.
+- **ADR-07** The refresh token gets its own private store instead of the config entry
+  (would reload the entry on every change) or the statistics store (not secret, may be
+  shared in issues).
 
 ## 7. Quality and delivery
 

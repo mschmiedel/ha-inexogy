@@ -24,6 +24,7 @@ from .parser import RecentData
 
 _LOGGER = logging.getLogger(__name__)
 
+AUTH_STORAGE_VERSION = 1
 STATS_STORAGE_VERSION = 1
 # Write statistics to disk at most this often (seconds); HA flushes on shutdown.
 STATS_SAVE_DELAY = 60
@@ -34,6 +35,11 @@ type InexogyConfigEntry = ConfigEntry[InexogyCoordinator]
 def stats_store(hass: HomeAssistant, entry_id: str) -> Store[dict]:
     """Return the storage holding an entry's API statistics."""
     return Store(hass, STATS_STORAGE_VERSION, f"{DOMAIN}.{entry_id}.stats")
+
+
+def auth_store(hass: HomeAssistant, entry_id: str) -> Store[dict]:
+    """Return the storage holding an entry's refresh token (file mode 0600)."""
+    return Store(hass, AUTH_STORAGE_VERSION, f"{DOMAIN}.{entry_id}.auth", private=True)
 
 
 class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
@@ -56,7 +62,25 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
         self.stats = client.stats
         self.series_id: str = entry.data[CONF_SERIES_ID]
         self._store = stats_store(hass, entry.entry_id)
+        self._auth_store = auth_store(hass, entry.entry_id)
         self._last_measurements: dict[str, datetime] = {}
+        client.on_refresh_token_changed = self._schedule_auth_save
+
+    async def async_load_auth(self) -> None:
+        """Restore the refresh token of a previous run, if still valid."""
+        stored = await self._auth_store.async_load()
+        if stored:
+            self.client.restore_refresh_token(stored.get("refresh_token"))
+
+    def _auth_data(self) -> dict:
+        return {"refresh_token": self.client.refresh_token}
+
+    def _schedule_auth_save(self) -> None:
+        self._auth_store.async_delay_save(self._auth_data, 1)
+
+    async def async_save_auth(self) -> None:
+        """Write the refresh token now, e.g. before the entry is unloaded."""
+        await self._auth_store.async_save(self._auth_data())
 
     async def async_load_stats(self) -> None:
         """Restore counters from a previous run."""

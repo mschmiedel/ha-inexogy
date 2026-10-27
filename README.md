@@ -84,6 +84,8 @@ If the password changes, Home Assistant asks for the new one (re-authentication)
 - Renewal: `POST /portal/auth/refresh` with `{"token": "<refresh token>"}` returns a new
   pair. If the refresh token is expired or rejected, the integration logs in again with
   email and password. A 401 on a data request triggers one renewal as well.
+- The refresh token is stored in Home Assistant's storage (`.storage/inexogy.<entry>.auth`,
+  readable only by Home Assistant), so a restart within its lifetime needs no new login.
 - Data: `GET /portal/measurement-series/<ID>/recent?from=<ms>&dimension=standard`.
 - Value lists are delta-encoded: the first entry carries absolute `time`, `value`
   and `reading`, every following entry only the difference to its predecessor.
