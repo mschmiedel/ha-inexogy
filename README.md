@@ -87,6 +87,25 @@ If the password changes, Home Assistant asks for the new one (re-authentication)
 Full details: [`docs/SPEC.md`](docs/SPEC.md). Try the endpoints with your own account
 using the [Bruno collection](bruno).
 
+## Reporting issues
+
+Please check these first, as far as they apply to your problem, and include the results
+in the issue:
+
+1. **Bruno collection** ([`bruno/`](bruno)): run the affected requests with your own
+   account (usually `01 Login`, `03 User settings`, `05 Recent values`). Note whether the
+   portal API itself answers as expected – status code and, redacted, the relevant part
+   of the response. This tells whether the problem is in the integration or at inexogy.
+2. **Diagnostic sensors** (meter device → *Diagnostic*, enable them if needed): include
+   the values of API calls, logins, token refreshes, polls with/without new data, failed
+   polls and last API call, plus the state of *Last measurement*.
+
+Also add the integration version, the Home Assistant version and relevant log lines
+(debug logging: `logger: logs: custom_components.inexogy: debug`).
+
+**Redact personal data** before posting: meter serials, container IDs, tokens, email,
+name, address.
+
 ## Contributing
 
 Contributions are welcome – issues and pull requests alike. Please keep these three in
