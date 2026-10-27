@@ -47,6 +47,33 @@
       },
       "last_measurement": {
         "name": "Last measurement"
+      },
+      "api_calls": {
+        "name": "API calls"
+      },
+      "logins": {
+        "name": "Logins"
+      },
+      "token_refreshes": {
+        "name": "Token refreshes"
+      },
+      "polls_new_data": {
+        "name": "Polls with new data"
+      },
+      "polls_no_new_data": {
+        "name": "Polls without new data"
+      },
+      "polls_failed": {
+        "name": "Failed polls"
+      },
+      "polls_per_new_value": {
+        "name": "Polls per new value"
+      },
+      "new_data_ratio": {
+        "name": "New data ratio"
+      },
+      "last_api_call": {
+        "name": "Last API call"
       }
     }
   }
