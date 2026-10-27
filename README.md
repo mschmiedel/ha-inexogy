@@ -78,6 +78,22 @@ If the password changes, Home Assistant asks for the new one (re-authentication)
   and `reading`, every following entry only the difference to its predecessor.
 - Units: energy in 10⁻¹⁰ kWh, power in mW. Feed-in power is reported negative.
 
+Full details: [`docs/SPEC.md`](docs/SPEC.md). Try the endpoints with your own account
+using the [Bruno collection](bruno).
+
+## Contributing
+
+Contributions are welcome – issues and pull requests alike. Please keep these three in
+sync with your change, otherwise the pull request cannot be merged:
+
+- [`docs/SPEC.md`](docs/SPEC.md) – specification and architecture (requirement IDs)
+- [`bruno/`](bruno) – requests for every portal endpoint the integration uses
+- this README (user-visible behaviour, sensors)
+
+`main` is protected: changes go through pull requests with passing checks (HACS, hassfest,
+tests). Never include personal data (meter serials, IDs, tokens, addresses) in code,
+tests, issues or pull requests. Notes for AI coding agents: [`AGENTS.md`](AGENTS.md).
+
 ## Releasing
 
 1. Set `version` in `custom_components/inexogy/manifest.json` (e.g. `1.0.0`) and commit.

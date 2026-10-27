@@ -1,0 +1,26 @@
+meta {
+  name: 04 Containers
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/containers?pageNo=0&pageSize=30
+  body: none
+  auth: bearer
+}
+
+params:query {
+  pageNo: 0
+  pageSize: 30
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Not used yet (planned): lists all measurement series ("containers") of the account
+  with `id`, `meterSerialNumbers`, `measurementInterval` (ms), `lastMeasurementTime`
+  and `offline`. `description` and `address` contain personal data.
+}
