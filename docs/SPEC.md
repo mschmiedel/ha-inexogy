@@ -185,7 +185,10 @@ update from the coordinator.
   pytest. Required checks on protected `main`; changes only via pull request.
 - Releases: bump `version` in `manifest.json`, merge, push tag `v<version>`;
   `release.yml` checks tag = manifest version and creates the GitHub release.
-- Versioning: semantic. New entities/behaviour → minor, fixes → patch.
+  Tags `vX.Y.Z` become releases; `vX.Y.Z(a|b|rc)N` become pre-releases, which HACS
+  offers only to users with beta versions enabled. Other tag formats fail.
+- Versioning: semantic, pre-releases in PEP 440 style (`1.1.0rc1` < `1.1.0`). New
+  entities/behaviour → minor, fixes → patch.
 
 ## 8. Roadmap (not implemented)
 
