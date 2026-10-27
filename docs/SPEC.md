@@ -27,9 +27,9 @@ documented public API with OAuth1 (used by the Home Assistant core integration).
 
 | Term | Meaning |
 | --- | --- |
-| Account | inexogy portal login (email + password). One HA config entry per measurement series. |
-| Measurement series / container | Portal object with a 32-hex-char ID (`defaultContainerId`, `containers[].id`). Holds one or more meters. |
-| Meter | Physical smart meter, identified by its serial number. |
+| Account | inexogy portal login (email + password). Can hold several containers. |
+| Measurement series / container | Portal object with a 32-hex-char ID (`defaultContainerId`, `containers[].id`). Usually exactly one meter (`meterSerialNumbers`); interval, last measurement and offline state exist per container, not per meter. All data endpoints work per container. One HA config entry per container. |
+| Meter | Physical smart meter, identified by its serial number. A bidirectional meter has two registers: import (`CONSUMPTION`, OBIS 1.8.0) and export (`FEED`, OBIS 2.8.0). |
 | Serial variants | The same meter appears as `1ABC0012345678` (with manufacturer prefix) and `12345678`. |
 | Measurement interval | Raster of the measurements, 15 min (`measurementInterval` = 900000 ms). |
 | Measurement time | Quarter-hour timestamp a value belongs to (not the time it was delivered). |
@@ -47,7 +47,7 @@ Base URL `https://api.inexogy.com/portal`. All requests except auth use
 | `POST /auth/refresh` `{"token": <refreshToken>}` | yes | New `accessToken` (also as `token`) and `refreshToken` |
 | `GET /user/settings` | yes (config flow) | `defaultContainerId` |
 | `GET /measurement-series/{id}/recent?from=<ms>&dimension=standard` | yes (every poll) | Current readings and recent 15-min power intervals |
-| `GET /containers?pageNo=0&pageSize=30` | planned | All containers incl. `measurementInterval`, `meterSerialNumbers`, `offline` |
+| `GET /containers?pageNo=0&pageSize=30` | yes (config flow with meter number) | All containers incl. `measurementInterval`, `meterSerialNumbers`, `offline`; paged, `totalCount` |
 | `GET /measurement-series/{id}/consumption?from&to&frequency=daily…` | planned | Historic values per day |
 
 ### 3.1 Token semantics
@@ -75,9 +75,13 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
 
 ### Setup and authentication
 
-- **REQ-01** The config flow asks only for email and password. The measurement series is
-  taken from `defaultContainerId`. Errors: `invalid_auth`, `cannot_connect`,
-  `no_series_id`, `no_data`.
+- **REQ-01** The config flow asks for email, password and an optional meter number.
+  Empty: the container is `defaultContainerId`. Set: the container whose
+  `meterSerialNumbers` contains the number (exact match first, else a unique match with
+  or without manufacturer prefix, at least 8 characters; case, spaces and dashes
+  ignored). Only email, password
+  and the container ID are stored. Errors: `invalid_auth`, `cannot_connect`,
+  `meter_not_found`, `no_series_id`, `no_data`.
 - **REQ-02** One config entry per measurement series (unique ID = series ID). The entry
   title is the account email. Titles of older versions (`inexogy <id prefix>`,
   `inexogy <serial(s)>`) are migrated; user-defined titles stay untouched.
@@ -112,8 +116,9 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
 
 ### Diagnostics
 
-- **REQ-20** A service device `inexogy API` per entry carries diagnostic sensors, all
-  **disabled by default**, always available (they also count failures):
+- **REQ-20** The device of the container's first meter carries diagnostic sensors
+  (API calls are per container; usually it is the only meter), all **disabled by
+  default**, always available (they also count failures):
   `api_calls`, `logins`, `token_refreshes`, `polls_new_data`, `polls_no_new_data`,
   `polls_failed` (total_increasing), `polls_per_new_value`, `new_data_ratio` (%),
   `last_api_call` (timestamp). Unique IDs `<series>_api_<key>`.
@@ -123,6 +128,9 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
 - **REQ-22** Counters and last seen measurement times are stored in HA storage
   (`inexogy.<entry_id>.stats`), saved with 60 s delay, immediately on unload, and deleted
   when the entry is removed.
+- **REQ-23** 1.1.0rc1 put the diagnostics on a separate service device
+  `(inexogy, <series>_api)`. On setup its entities are moved to the meter device (entity
+  IDs, enabled state and history kept) and the old device is removed.
 
 ## 5. Non-functional requirements
 
@@ -197,6 +205,7 @@ update from the coordinator.
   of polls without new data is high, X += 30 s, if it is low, X −= 30 s, bounded.
   Exponential backoff on errors/429. Interval from `containers.measurementInterval`.
   Goal (NFR-01): ~50–67 % fewer calls with the same freshness.
-- **Containers.** Use `/containers` for all series of an account and an `offline` sensor.
+- **Containers.** Use `measurementInterval` as polling raster and add an `offline`
+  sensor (both per container).
 - **External statistics.** Import hourly sums with their real timestamps for the Energy
   dashboard (fills gaps, correct hour attribution).

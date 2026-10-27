@@ -9,7 +9,7 @@ for support and for checking the API with your own account in
 | 01 Login | yes |
 | 02 Refresh token | yes |
 | 03 User settings | yes (config flow) |
-| 04 Containers | planned |
+| 04 Containers | yes (config flow, when a meter number is entered) |
 | 05 Recent values | yes (every poll) |
 | 06 Consumption daily | planned |
 

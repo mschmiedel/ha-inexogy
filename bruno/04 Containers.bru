@@ -20,7 +20,10 @@ auth:bearer {
 }
 
 docs {
-  Not used yet (planned): lists all measurement series ("containers") of the account
-  with `id`, `meterSerialNumbers`, `measurementInterval` (ms), `lastMeasurementTime`
-  and `offline`. `description` and `address` contain personal data.
+  Used by the integration in the config flow when a meter number is entered
+  (`async_get_containers`): finds the container whose `meterSerialNumbers` contains it.
+  Paged via `pageNo`/`pageSize`, `totalCount` gives the total.
+
+  Per container: `id`, `meterSerialNumbers`, `measurementInterval` (ms),
+  `lastMeasurementTime`, `offline`. `description` and `address` contain personal data.
 }

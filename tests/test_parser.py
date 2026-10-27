@@ -120,3 +120,27 @@ def test_missing_series():
 
 def test_empty_response():
     assert parser.parse_recent([]).meters == {}
+
+
+CONTAINERS = [
+    {"id": "aaa", "meterSerialNumbers": ["1ABC0012345678"]},
+    {"id": "bbb", "meterSerialNumbers": ["1XYZ0087654321", "1XYZ0011112222"]},
+]
+
+
+def test_find_container_exact_and_variants():
+    assert parser.find_container_for_meter(CONTAINERS, "1ABC0012345678") == "aaa"
+    assert parser.find_container_for_meter(CONTAINERS, "12345678") == "aaa"
+    assert parser.find_container_for_meter(CONTAINERS, " 1abc-0012345678 ") == "aaa"
+    assert parser.find_container_for_meter(CONTAINERS, "1XYZ0011112222") == "bbb"
+
+
+def test_find_container_not_found_or_ambiguous():
+    assert parser.find_container_for_meter(CONTAINERS, "99999999") is None
+    assert parser.find_container_for_meter(CONTAINERS, "") is None
+    # Too short to match on the ending only.
+    assert parser.find_container_for_meter(CONTAINERS, "2") is None
+    assert parser.find_container_for_meter(CONTAINERS, "5678") is None
+    assert (
+        parser.find_container_for_meter([{"meterSerialNumbers": ["12345678"]}], "12345678") is None
+    )

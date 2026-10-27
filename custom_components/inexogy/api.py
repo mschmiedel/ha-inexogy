@@ -31,6 +31,8 @@ _LOGGER = logging.getLogger(__name__)
 _TIMEOUT = aiohttp.ClientTimeout(total=30)
 # Renew tokens this many seconds before they expire.
 _EXPIRY_MARGIN = 60
+_CONTAINER_PAGE_SIZE = 30
+_MAX_CONTAINER_PAGES = 10
 
 
 class InexogyError(Exception):
@@ -182,6 +184,23 @@ class InexogyClient:
             raise InexogyConnectionError("Unexpected response format")
         series_id = payload.get("defaultContainerId")
         return str(series_id) if series_id else None
+
+    async def async_get_containers(self) -> list[dict[str, Any]]:
+        """Return all containers (measurement series) of the account."""
+        containers: list[dict[str, Any]] = []
+        page = 0
+        while page < _MAX_CONTAINER_PAGES:
+            payload = await self._get(
+                "/containers", {"pageNo": str(page), "pageSize": str(_CONTAINER_PAGE_SIZE)}
+            )
+            if not isinstance(payload, dict):
+                raise InexogyConnectionError("Unexpected response format")
+            batch = payload.get("containers") or []
+            containers.extend(c for c in batch if isinstance(c, dict))
+            if not batch or len(containers) >= int(payload.get("totalCount") or 0):
+                break
+            page += 1
+        return containers
 
     async def async_get_recent(self, series_id: str, from_ms: int) -> RecentData:
         """Fetch current meter readings and the latest power intervals."""

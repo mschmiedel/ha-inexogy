@@ -24,9 +24,10 @@ Meters that appear later are added automatically.
 
 ### Diagnostic statistics (disabled by default)
 
-A separate **inexogy API** device holds diagnostic sensors about the communication
-with the portal. They are disabled by default; enable them on the device page if you
-want the numbers (e.g. to tune polling).
+The meter device also carries diagnostic sensors about the communication with the
+portal (listed under *Diagnostic* on the device page). They are disabled by default;
+enable them if you want the numbers (e.g. to tune polling). API calls are made per
+container, so with several meters in one container they sit on the first meter.
 
 | Sensor | Meaning |
 | --- | --- |
@@ -58,9 +59,14 @@ Copy `custom_components/inexogy` into your `config/custom_components` folder and
 
 *Settings → Devices & services → Add integration → inexogy*
 
-Enter the **email and password** of your inexogy portal account.
-The measurement series is determined automatically (`defaultContainerId` from
-`/portal/user/settings`); all meters in it are added as devices.
+Enter the **email and password** of your inexogy portal account and, optionally, a
+**meter number** (e.g. `1ABC0012345678`, with or without the manufacturer prefix):
+
+- empty: the account's default meter is used (`defaultContainerId` from `/portal/user/settings`)
+- set: the integration looks up the container holding that meter (`/portal/containers`)
+
+Each config entry covers one container (usually one meter). Add the integration again
+with another meter number for further meters of the same account.
 
 If the password changes, Home Assistant asks for the new one (re-authentication).
 

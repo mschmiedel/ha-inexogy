@@ -3,10 +3,11 @@
     "step": {
       "user": {
         "title": "Connect inexogy",
-        "description": "Log in with your inexogy portal account. All meters of the account are added.",
+        "description": "Log in with your inexogy portal account. Optionally enter the meter number (e.g. 1ABC0012345678) to add a specific meter; leave it empty to use your account's default meter.",
         "data": {
           "email": "Email",
-          "password": "Password"
+          "password": "Password",
+          "meter_serial": "Meter number (optional)"
         }
       },
       "reauth_confirm": {
@@ -21,7 +22,8 @@
       "invalid_auth": "Invalid email or password.",
       "cannot_connect": "Could not reach the inexogy portal or the measurement series ID is wrong.",
       "no_data": "The measurement series returned no data.",
-      "no_series_id": "No measurement series found for this account."
+      "no_series_id": "No measurement series found for this account.",
+      "meter_not_found": "No meter with this number was found in your account."
     },
     "abort": {
       "already_configured": "This measurement series is already configured.",
