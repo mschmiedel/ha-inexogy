@@ -1,0 +1,30 @@
+meta {
+  name: 02 Refresh token
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "token": "{{refreshToken}}"
+  }
+}
+
+script:post-response {
+  bru.setVar("accessToken", res.body.accessToken || res.body.token);
+  if (res.body.refreshToken) {
+    bru.setVar("refreshToken", res.body.refreshToken);
+  }
+}
+
+docs {
+  Used by the integration (`InexogyClient._async_refresh`). Run "01 Login" first.
+
+  Response: `token` and `accessToken` (identical) plus a new `refreshToken`.
+}
