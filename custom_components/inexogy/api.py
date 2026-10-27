@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from datetime import UTC, datetime
 import json
 import logging
 import time
@@ -23,6 +24,7 @@ import aiohttp
 
 from .const import API_BASE_URL
 from .parser import RecentData, parse_recent
+from .stats import ApiStats
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,9 +60,16 @@ def _token_expiry(token: str) -> float | None:
 class InexogyClient:
     """Talk to the inexogy portal."""
 
-    def __init__(self, session: aiohttp.ClientSession, email: str, password: str) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        email: str,
+        password: str,
+        stats: ApiStats | None = None,
+    ) -> None:
         """Initialize the client."""
         self._session = session
+        self.stats = stats or ApiStats()
         self._email = email
         self._password = password
         self._access_token: str | None = None
@@ -68,6 +77,10 @@ class InexogyClient:
         self._refresh_token: str | None = None
         self._refresh_expires_at: float | None = None
         self._lock = asyncio.Lock()
+
+    def _count_call(self) -> None:
+        self.stats.api_calls += 1
+        self.stats.last_api_call = datetime.now(UTC)
 
     @staticmethod
     def _usable(token: str | None, expires_at: float | None) -> bool:
@@ -90,6 +103,7 @@ class InexogyClient:
 
     async def _async_refresh(self) -> bool:
         """Renew the access token with the refresh token; False on failure."""
+        self._count_call()
         try:
             async with self._session.post(
                 f"{API_BASE_URL}/auth/refresh",
@@ -102,10 +116,12 @@ class InexogyClient:
             _LOGGER.debug("Token refresh failed, logging in again: %s", err)
             self._refresh_token = None
             return False
+        self.stats.token_refreshes += 1
         return True
 
     async def async_login(self) -> None:
         """Log in and store fresh tokens."""
+        self._count_call()
         try:
             async with self._session.post(
                 f"{API_BASE_URL}/auth",
@@ -122,6 +138,7 @@ class InexogyClient:
             raise InexogyConnectionError(f"Login failed: {err}") from err
 
         self._store_tokens(data)
+        self.stats.logins += 1
 
     async def _ensure_token(self) -> str:
         async with self._lock:
@@ -138,6 +155,7 @@ class InexogyClient:
     async def _get(self, path: str, params: dict[str, Any]) -> Any:
         for attempt in range(2):
             token = await self._ensure_token()
+            self._count_call()
             try:
                 async with self._session.get(
                     f"{API_BASE_URL}{path}",

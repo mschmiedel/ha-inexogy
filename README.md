@@ -22,6 +22,24 @@ Meters that appear later are added automatically.
 | Net grid power | W | Import minus export (negative while exporting) |
 | Last measurement | timestamp | End of the latest interval delivered by the portal |
 
+### Diagnostic statistics (disabled by default)
+
+A separate **inexogy API** device holds diagnostic sensors about the communication
+with the portal. They are disabled by default; enable them on the device page if you
+want the numbers (e.g. to tune polling).
+
+| Sensor | Meaning |
+| --- | --- |
+| API calls | Every HTTP request to the portal (login, refresh, data) |
+| Logins / Token refreshes | Full logins and successful refresh-token renewals |
+| Polls with / without new data | Whether the latest measurement time of a meter advanced |
+| Failed polls | Polls that ended in an error |
+| Polls per new value | Successful polls per new measurement (ideal: 1.0) |
+| New data ratio | Share of successful polls that brought new data (%) |
+| Last API call | Timestamp of the latest request; a recorder/InfluxDB keeps one entry per call |
+
+Counters survive restarts and are deleted together with the integration entry.
+
 The portal is polled every 5 minutes. Values arrive with the delay of the
 inexogy backend (typically 15 minutes or more), so this is not a real-time source.
 

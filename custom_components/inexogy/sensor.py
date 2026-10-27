@@ -12,15 +12,16 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfEnergy, UnitOfPower
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, meter_id
 from .coordinator import InexogyConfigEntry, InexogyCoordinator
 from .parser import MeterData
+from .stats import ApiStats
 
 PARALLEL_UPDATES = 0
 
@@ -87,6 +88,55 @@ SENSORS: tuple[InexogySensorEntityDescription, ...] = (
 )
 
 
+@dataclass(frozen=True, kw_only=True)
+class InexogyStatsSensorEntityDescription(SensorEntityDescription):
+    """Describes a diagnostic sensor about the API usage."""
+
+    value_fn: Callable[[ApiStats], float | int | datetime | None]
+    entity_category: EntityCategory | None = EntityCategory.DIAGNOSTIC
+    entity_registry_enabled_default: bool = False
+
+
+def _counter(key: str, attr: str) -> InexogyStatsSensorEntityDescription:
+    return InexogyStatsSensorEntityDescription(
+        key=key,
+        translation_key=key,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda stats: getattr(stats, attr),
+    )
+
+
+STATS_SENSORS: tuple[InexogyStatsSensorEntityDescription, ...] = (
+    _counter("api_calls", "api_calls"),
+    _counter("logins", "logins"),
+    _counter("token_refreshes", "token_refreshes"),
+    _counter("polls_new_data", "polls_new_data"),
+    _counter("polls_no_new_data", "polls_no_new_data"),
+    _counter("polls_failed", "polls_failed"),
+    InexogyStatsSensorEntityDescription(
+        key="polls_per_new_value",
+        translation_key="polls_per_new_value",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=lambda stats: stats.polls_per_new_value,
+    ),
+    InexogyStatsSensorEntityDescription(
+        key="new_data_ratio",
+        translation_key="new_data_ratio",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=1,
+        value_fn=lambda stats: stats.new_data_ratio,
+    ),
+    InexogyStatsSensorEntityDescription(
+        key="last_api_call",
+        translation_key="last_api_call",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda stats: stats.last_api_call,
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: InexogyConfigEntry,
@@ -111,6 +161,9 @@ async def async_setup_entry(
 
     _add_new_meters()
     entry.async_on_unload(coordinator.async_add_listener(_add_new_meters))
+    async_add_entities(
+        InexogyStatsSensor(coordinator, description) for description in STATS_SENSORS
+    )
 
 
 class InexogySensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
@@ -152,3 +205,36 @@ class InexogySensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
         """Return the sensor value."""
         meter = self._meter
         return self.entity_description.value_fn(meter) if meter else None
+
+
+class InexogyStatsSensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
+    """Diagnostic sensor about the communication with the portal."""
+
+    _attr_has_entity_name = True
+    entity_description: InexogyStatsSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: InexogyCoordinator,
+        description: InexogyStatsSensorEntityDescription,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.series_id}_api_{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{coordinator.series_id}_api")},
+            name="inexogy API",
+            manufacturer="inexogy",
+            entry_type=DeviceEntryType.SERVICE,
+        )
+
+    @property
+    def available(self) -> bool:
+        """Statistics stay available while the portal fails; they count the failures."""
+        return True
+
+    @property
+    def native_value(self) -> float | int | datetime | None:
+        """Return the statistic."""
+        return self.entity_description.value_fn(self.coordinator.stats)

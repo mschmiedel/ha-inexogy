@@ -9,7 +9,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import InexogyClient
 from .const import DOMAIN, meter_id
-from .coordinator import InexogyConfigEntry, InexogyCoordinator
+from .coordinator import InexogyConfigEntry, InexogyCoordinator, stats_store
 from .sensor import SENSORS
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
@@ -21,6 +21,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: InexogyConfigEntry) -> b
         async_get_clientsession(hass), entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD]
     )
     coordinator = InexogyCoordinator(hass, entry, client)
+    await coordinator.async_load_stats()
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
 
@@ -66,4 +67,12 @@ def _migrate_single_device(
 
 async def async_unload_entry(hass: HomeAssistant, entry: InexogyConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        await entry.runtime_data.async_save_stats()
+    return unloaded
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: InexogyConfigEntry) -> None:
+    """Delete the stored API statistics together with the entry."""
+    await stats_store(hass, entry.entry_id).async_remove()
