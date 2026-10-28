@@ -8,6 +8,20 @@
 Unofficial Home Assistant integration for smart meters read out by
 [inexogy](https://inexogy.com). It uses the same API as the inexogy web portal.
 
+## Why this integration?
+
+Home Assistant ships an official
+[inexogy integration](https://www.home-assistant.io/integrations/discovergy/), but
+it still uses the API of the old discovergy portal. With my meter it delivered the
+reading once and never updated it again; this may only affect some meters or
+accounts (e.g. newer ones that only live in the current portal). This integration
+uses the portal API instead, so it could work for you if the official one does not
+deliver the expected result.
+
+This is an unofficial alternative, not a replacement maintained by inexogy or the
+Home Assistant project. The two use different domains (`discovergy` and `inexogy`),
+so they can be installed side by side.
+
 ## Sensors
 
 One device per meter found in the measurement series, named `inexogy <meter serial>`.
