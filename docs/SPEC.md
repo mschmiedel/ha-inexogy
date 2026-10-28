@@ -108,6 +108,12 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
   counts. The first poll after start always runs. Rationale (NFR-01): skipped polls grow
   the faster inexogy delivers – with a delivery delay of 2 min, 2 of 3 polls per interval
   are skipped; with delays ≥ 15 min (observed for the author's meter) almost none.
+- **REQ-16** After a poll with new data, the next poll waits at least interval − scan
+  interval − 1 min (15/5 min: one poll is skipped). New values arrive about one interval
+  apart: in 87 observed arrivals, the poll right after new data was empty 86 times
+  (2026-10-27/28). Saves ~⅓ of the calls; a value arriving within 10 min of the previous
+  one is shown ≤ 5 min later (no data is lost, `recent` covers 3 h). Skipped polls of
+  REQ-15 and REQ-16 share the counter `polls_skipped`.
 - **REQ-11** Series are grouped per meter; serial variants that are suffixes of a longer
   serial belong to that meter, named after the longest variant. Series without serial
   belong to the only meter, else to `unknown`.
@@ -184,7 +190,8 @@ custom_components/inexogy/
 **Setup:** create client → coordinator loads stored statistics and refresh token → first
 refresh (token refresh or login, `recent`) → migrate device/entity IDs and title → forward to sensor platform.
 
-**Poll (every 5 min):** skip if the next measurement is not due yet (REQ-15) → ensure token (valid / refresh / login) → `GET recent` → parse →
+**Poll (every 5 min):** skip if the next measurement is not due yet (REQ-15) or new data
+arrived less than interval − scan interval ago (REQ-16) → ensure token (valid / refresh / login) → `GET recent` → parse →
 compare measurement times (new data or not) → update counters, schedule save → entities
 update from the coordinator.
 

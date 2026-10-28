@@ -18,6 +18,7 @@ from .const import (
     DEFAULT_MEASUREMENT_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    POLL_TOLERANCE,
     RECENT_LOOKBACK,
 )
 from .parser import RecentData
@@ -64,6 +65,7 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
         self._store = stats_store(hass, entry.entry_id)
         self._auth_store = auth_store(hass, entry.entry_id)
         self._last_measurements: dict[str, datetime] = {}
+        self._last_new_data_at: datetime | None = None
         client.on_refresh_token_changed = self._schedule_auth_save
 
     async def async_load_auth(self) -> None:
@@ -111,15 +113,10 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
         await self._store.async_save(self._stats_data())
 
     async def _async_update_data(self) -> RecentData:
-        # Skip polls that cannot return anything new: after the latest value T
-        # the next one cannot exist before T + interval. The faster inexogy
-        # delivers, the more polls are skipped.
-        if self.data is not None:
-            due = self.data.next_measurement_due(DEFAULT_MEASUREMENT_INTERVAL)
-            if due is not None and dt_util.utcnow() < due:
-                self.stats.polls_skipped += 1
-                self._store.async_delay_save(self._stats_data, STATS_SAVE_DELAY)
-                return self.data
+        if self.data is not None and self._should_skip(self.data):
+            self.stats.polls_skipped += 1
+            self._store.async_delay_save(self._stats_data, STATS_SAVE_DELAY)
+            return self.data
         from_ms = int((dt_util.utcnow() - RECENT_LOOKBACK).timestamp() * 1000)
         try:
             data = await self.client.async_get_recent(self.series_id, from_ms)
@@ -131,6 +128,23 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
             raise UpdateFailed(str(err)) from err
         self._count_poll(new_data=self._has_new_data(data))
         return data
+
+    def _should_skip(self, data: RecentData) -> bool:
+        """Return whether the next poll cannot bring anything new (REQ-15, REQ-16)."""
+        now = dt_util.utcnow()
+        # After the latest value T the next one cannot exist before T + interval.
+        # The faster inexogy delivers, the more polls this skips.
+        due = data.next_measurement_due(DEFAULT_MEASUREMENT_INTERVAL)
+        if due is not None and now < due:
+            return True
+        # New values arrive about one interval apart, so right after new data
+        # the next poll is (almost) always empty: wait interval - scan interval.
+        if self._last_new_data_at is not None:
+            interval = data.measurement_interval(DEFAULT_MEASUREMENT_INTERVAL)
+            wait = interval - DEFAULT_SCAN_INTERVAL - POLL_TOLERANCE
+            if now < self._last_new_data_at + wait:
+                return True
+        return False
 
     def _has_new_data(self, data: RecentData) -> bool:
         """Return whether the latest measurement of any meter advanced."""
@@ -150,6 +164,7 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
             self.stats.polls_failed += 1
         elif new_data:
             self.stats.polls_new_data += 1
+            self._last_new_data_at = dt_util.utcnow()
         else:
             self.stats.polls_no_new_data += 1
         self._store.async_delay_save(self._stats_data, STATS_SAVE_DELAY)

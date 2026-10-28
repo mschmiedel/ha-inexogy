@@ -129,6 +129,15 @@ class RecentData:
 
     meters: dict[str, MeterData]
 
+    def measurement_interval(self, default_interval: timedelta) -> timedelta:
+        """Shortest measurement interval of all meters (fallback: default)."""
+        intervals = [
+            interval
+            for meter in self.meters.values()
+            if (interval := meter.measurement_interval) is not None
+        ]
+        return min(intervals) if intervals else default_interval
+
     def next_measurement_due(self, default_interval: timedelta) -> datetime | None:
         """Earliest time a newer measurement can exist for any meter.
 

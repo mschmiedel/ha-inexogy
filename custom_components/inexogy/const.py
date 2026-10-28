@@ -24,6 +24,9 @@ RECENT_LOOKBACK = timedelta(hours=3)
 # Used when the response does not reveal the raster (fewer than two intervals).
 DEFAULT_MEASUREMENT_INTERVAL = timedelta(minutes=15)
 
+# Polls are scheduled with some jitter; a poll this much early still counts as on time.
+POLL_TOLERANCE = timedelta(minutes=1)
+
 
 def meter_id(series_id: str, serial: str) -> str:
     """Return the ID used for a meter's device and entity unique IDs."""
