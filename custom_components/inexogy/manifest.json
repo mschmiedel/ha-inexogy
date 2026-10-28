@@ -1,7 +1,12 @@
 {
   "domain": "inexogy",
   "name": "inexogy",
-  "codeowners": ["@mschmiedel"],
+  "categories": [
+    "energy.meters_monitoring"
+  ],
+  "codeowners": [
+    "@mschmiedel"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/mschmiedel/ha-inexogy",
   "integration_type": "device",
