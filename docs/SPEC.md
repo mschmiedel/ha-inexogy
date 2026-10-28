@@ -47,7 +47,7 @@ Base URL `https://api.inexogy.com/portal`. All requests except auth use
 | `POST /auth/refresh` `{"token": <refreshToken>}` | yes | New `accessToken` (also as `token`) and `refreshToken` |
 | `GET /user/settings` | yes (config flow) | `defaultContainerId` |
 | `GET /measurement-series/{id}/recent?from=<ms>&dimension=standard` | yes (every poll) | Current readings and recent 15-min power intervals |
-| `GET /containers?pageNo=0&pageSize=30` | yes (config flow with meter number) | All containers incl. `measurementInterval`, `meterSerialNumbers`, `offline`; paged, `totalCount` |
+| `GET /containers?pageNo=0&pageSize=30` | yes (config flow with meter number; hourly while the connection sensor is enabled, REQ-25) | All containers incl. `measurementInterval`, `meterSerialNumbers`, `offline`; paged, `totalCount` |
 | `GET /measurement-series/{id}/consumption?from&to&frequency=daily…` | planned | Historic values per day |
 
 ### 3.1 Token semantics
@@ -94,9 +94,14 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
 - **REQ-05** The refresh token is persisted per entry in HA storage
   (`inexogy.<entry_id>.auth`, file mode 0600) whenever it changes, and immediately on
   unload. On setup a stored, still valid token is used first, so a restart within its
-  lifetime (~3 days) needs a refresh instead of a full login. The access token is not
-  persisted. The store is deleted with the entry; the token never appears in logs or
+  lifetime (~3 days) needs a refresh instead of a full login. The token is stored with
+  the account email; a token stored for a different email is ignored. The access token is
+  not persisted. The store is deleted with the entry; the token never appears in logs or
   diagnostics.
+- **REQ-06** Reconfigure flow: change email and/or password of an existing entry
+  (password empty = keep). The new credentials are validated against the stored
+  container, which never changes; another meter needs a new entry. A title equal to the
+  old email follows the new email; other titles stay.
 
 ### Data and entities
 
@@ -152,6 +157,19 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
   `(inexogy, <series>_api)`. On setup its entities are moved to the meter device (entity
   IDs, enabled state and history kept) and the old device is removed.
 
+- **REQ-24** Diagnostics download (HA *Download diagnostics*): config entry with email,
+  password, container ID, title and unique ID redacted; coordinator state (last update
+  success, scan interval, next measurement due, last poll with new data, whether the next
+  poll is skipped, offline flag); per meter (by position, without serial) the series
+  present, current values, last measurement and interval; API statistics. No tokens.
+- **REQ-25** Diagnostic binary sensor `connection` (device class connectivity, on =
+  online) on the device of the container's first meter, from `offline` of the container
+  in `GET /containers`. **Disabled by default.** `/containers` is only called while the
+  entity is enabled: once when it is added, then at most once per hour with the regular
+  polls (also when the poll itself is skipped). Unavailable while the flag is unknown or
+  the call failed; the call counts in `api_calls`, not as a poll. Unique ID
+  `<series>_connection`.
+
 ## 5. Non-functional requirements
 
 - **NFR-01 API load.** Many installations multiply every call. Avoid calls that cannot
@@ -172,12 +190,14 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
 ```
 custom_components/inexogy/
 ├── __init__.py      setup/unload/remove, migrations (REQ-02, REQ-14)
-├── config_flow.py   user + reauth flow (REQ-01, REQ-04)
+├── config_flow.py   user, reauth and reconfigure flow (REQ-01, REQ-04, REQ-06)
 ├── coordinator.py   DataUpdateCoordinator: polling, poll statistics, storage (REQ-10, REQ-21/22)
 ├── api.py           InexogyClient: HTTP, tokens, call counters (REQ-03, REQ-20)
 ├── parser.py        pure: delta decoding, units, grouping per meter (REQ-11, REQ-13)
 ├── stats.py         pure: ApiStats counters and ratios (REQ-20/21)
 ├── sensor.py        meter sensors and diagnostic sensors (REQ-12/13, REQ-20)
+├── binary_sensor.py connection sensor (REQ-25)
+├── diagnostics.py   diagnostics download (REQ-24)
 ├── const.py         constants, ID helpers
 ├── strings.json, translations/   UI texts (NFR-04)
 └── brand/           icon (NFR-03)
@@ -190,7 +210,8 @@ custom_components/inexogy/
 **Setup:** create client → coordinator loads stored statistics and refresh token → first
 refresh (token refresh or login, `recent`) → migrate device/entity IDs and title → forward to sensor platform.
 
-**Poll (every 5 min):** skip if the next measurement is not due yet (REQ-15) or new data
+**Poll (every 5 min):** if the connection sensor is enabled and the last
+`/containers` call is older than 1 h, fetch it (REQ-25) → skip if the next measurement is not due yet (REQ-15) or new data
 arrived less than interval − scan interval ago (REQ-16) → ensure token (valid / refresh / login) → `GET recent` → parse →
 compare measurement times (new data or not) → update counters, schedule save → entities
 update from the coordinator.
@@ -231,7 +252,8 @@ update from the coordinator.
   of polls without new data is high, X += 30 s, if it is low, X −= 30 s, bounded.
   Exponential backoff on errors/429. Interval from `containers.measurementInterval`.
   Goal (NFR-01): ~50–67 % fewer calls with the same freshness.
-- **Containers.** Use `measurementInterval` as polling raster and add an `offline`
-  sensor (both per container).
+- **Containers interval.** `measurementInterval` from `/containers` is not used: the
+  interval is derived from the spacing of the latest POWER points (REQ-15), which needs no
+  extra call. Worth revisiting only if a container reports something other than 15 min.
 - **External statistics.** Import hourly sums with their real timestamps for the Energy
   dashboard (fills gaps, correct hour attribution).

@@ -16,6 +16,17 @@
         "data": {
           "password": "Passwort"
         }
+      },
+      "reconfigure": {
+        "title": "inexogy neu konfigurieren",
+        "description": "Ändere die Anmeldung dieses Eintrags. Die Messreihe bleibt gleich; für einen weiteren Zähler lege einen neuen Eintrag an.",
+        "data": {
+          "email": "E-Mail",
+          "password": "Passwort"
+        },
+        "data_description": {
+          "password": "Leer lassen, um das aktuelle Passwort zu behalten."
+        }
       }
     },
     "error": {
@@ -27,10 +38,16 @@
     },
     "abort": {
       "already_configured": "Diese Messreihe ist bereits eingerichtet.",
-      "reauth_successful": "Erneute Anmeldung erfolgreich."
+      "reauth_successful": "Erneute Anmeldung erfolgreich.",
+      "reconfigure_successful": "Neukonfiguration erfolgreich."
     }
   },
   "entity": {
+    "binary_sensor": {
+      "connection": {
+        "name": "Zählerverbindung"
+      }
+    },
     "sensor": {
       "consumption_energy": {
         "name": "Netzbezug"

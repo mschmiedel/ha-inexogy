@@ -27,6 +27,9 @@ DEFAULT_MEASUREMENT_INTERVAL = timedelta(minutes=15)
 # Polls are scheduled with some jitter; a poll this much early still counts as on time.
 POLL_TOLERANCE = timedelta(minutes=1)
 
+# The container's offline flag changes rarely; fetch it at most this often.
+CONTAINERS_INTERVAL = timedelta(hours=1)
+
 
 def meter_id(series_id: str, serial: str) -> str:
     """Return the ID used for a meter's device and entity unique IDs."""

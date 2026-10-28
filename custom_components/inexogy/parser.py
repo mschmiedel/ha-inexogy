@@ -247,3 +247,15 @@ def find_container_for_meter(containers: list[dict[str, Any]], serial: str) -> s
                 partial.append(str(container_id))
     matches = list(dict.fromkeys(exact or partial))
     return matches[0] if len(matches) == 1 else None
+
+
+def container_offline(containers: list[dict[str, Any]], series_id: str) -> bool | None:
+    """Return the ``offline`` flag of the container ``series_id``.
+
+    None when the container is missing or the flag is not a boolean.
+    """
+    for container in containers:
+        if str(container.get("id")) == series_id:
+            offline = container.get("offline")
+            return offline if isinstance(offline, bool) else None
+    return None

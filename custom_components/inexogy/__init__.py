@@ -12,7 +12,7 @@ from .const import DOMAIN, meter_id, primary_meter
 from .coordinator import InexogyConfigEntry, InexogyCoordinator, auth_store, stats_store
 from .sensor import SENSORS
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: InexogyConfigEntry) -> bool:

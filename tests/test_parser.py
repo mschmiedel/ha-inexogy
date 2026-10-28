@@ -179,3 +179,18 @@ def test_recent_measurement_interval():
     assert parser.parse_recent(single).measurement_interval(timedelta(hours=1)) == timedelta(
         hours=1
     )
+
+
+def test_container_offline():
+    containers = [
+        {"id": "aaa", "offline": False},
+        {"id": "bbb", "offline": True},
+        {"id": "ccc", "offline": "yes"},
+        {"id": "ddd"},
+    ]
+    assert parser.container_offline(containers, "aaa") is False
+    assert parser.container_offline(containers, "bbb") is True
+    assert parser.container_offline(containers, "ccc") is None
+    assert parser.container_offline(containers, "ddd") is None
+    assert parser.container_offline(containers, "zzz") is None
+    assert parser.container_offline([], "aaa") is None

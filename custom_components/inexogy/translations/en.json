@@ -16,6 +16,17 @@
         "data": {
           "password": "Password"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigure inexogy",
+        "description": "Change the login of this entry. The measurement series stays the same; to add another meter, add a new entry.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        },
+        "data_description": {
+          "password": "Leave empty to keep the current password."
+        }
       }
     },
     "error": {
@@ -27,10 +38,16 @@
     },
     "abort": {
       "already_configured": "This measurement series is already configured.",
-      "reauth_successful": "Re-authentication was successful."
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Reconfiguration was successful."
     }
   },
   "entity": {
+    "binary_sensor": {
+      "connection": {
+        "name": "Meter connection"
+      }
+    },
     "sensor": {
       "consumption_energy": {
         "name": "Grid consumption"
