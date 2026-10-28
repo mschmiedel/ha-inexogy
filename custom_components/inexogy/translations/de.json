@@ -96,6 +96,9 @@
       },
       "polls_skipped": {
         "name": "Übersprungene Abfragen"
+      },
+      "missing_values": {
+        "name": "Fehlende Messwerte"
       }
     }
   }

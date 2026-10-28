@@ -50,6 +50,7 @@ container, so with several meters in one container they sit on the first meter.
 | Polls with / without new data | Whether the latest measurement time of a meter advanced |
 | Failed polls | Polls that ended in an error |
 | Skipped polls | Polls skipped without an API call because they cannot bring new data |
+| Missing measurements | 15-minute intervals inexogy left out (no value for that quarter-hour) |
 | Polls per new value | Successful polls per new measurement (ideal: 1.0) |
 | New data ratio | Share of successful polls that brought new data (%) |
 | Last API call | Timestamp of the latest request; a recorder/InfluxDB keeps one entry per call |
