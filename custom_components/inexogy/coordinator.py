@@ -206,7 +206,10 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
         return False
 
     def _has_new_data(self, data: RecentData) -> bool:
-        """Return whether the latest measurement of any meter advanced."""
+        """Return whether the latest measurement of any meter advanced.
+
+        Also counts the intervals missing since the previous one (REQ-26).
+        """
         new_data = False
         for serial, meter in data.meters.items():
             latest = meter.last_measurement
@@ -216,6 +219,13 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
             if previous is None or latest > previous:
                 new_data = True
                 self._last_measurements[serial] = latest
+            if previous is not None and latest > previous:
+                interval = meter.measurement_interval or data.measurement_interval(
+                    DEFAULT_MEASUREMENT_INTERVAL
+                )
+                if missing := meter.missing_intervals(previous, interval):
+                    _LOGGER.debug("%s measurement interval(s) missing before %s", missing, latest)
+                    self.stats.missing_values += missing
         return new_data
 
     def _count_poll(self, *, new_data: bool = False, failed: bool = False) -> None:

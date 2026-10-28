@@ -33,6 +33,7 @@ documented public API with OAuth1 (used by the Home Assistant core integration).
 | Serial variants | The same meter appears as `1ABC0012345678` (with manufacturer prefix) and `12345678`. |
 | Measurement interval | Raster of the measurements, 15 min (`measurementInterval` = 900000 ms). |
 | Measurement time | Quarter-hour timestamp a value belongs to (not the time it was delivered). |
+| Gap | Measurement interval missing in the portal data (no POWER point for that slot); see REQ-26. |
 | Delivery delay | Time between measurement time and availability in the API; observed 6–21 min, irregular at night. |
 | Poll | One call to the `recent` endpoint by the coordinator. |
 
@@ -108,9 +109,11 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
 - **REQ-10** Poll `recent` every 5 minutes with a look-back of 3 hours.
 - **REQ-15** Skip a poll (no API call) while no newer measurement can exist yet: a value
   for measurement time T is only available after T, so after the latest value T the next
-  one cannot appear before T + interval. The interval is the spacing of the latest POWER
-  points of the response (fallback 15 min); with several meters the one due first
-  counts. The first poll after start always runs. Rationale (NFR-01): skipped polls grow
+  one cannot appear before T + interval. The interval is the smallest spacing of the
+  POWER points of the response (fallback 15 min) – not the latest spacing, because
+  inexogy sometimes leaves out an interval and a gap would look like a 30-min raster
+  (1.2.0rc1 delayed polls by up to 25 min that way). With several meters the one due
+  first counts. The first poll after start always runs. Rationale (NFR-01): skipped polls grow
   the faster inexogy delivers – with a delivery delay of 2 min, 2 of 3 polls per interval
   are skipped; with delays ≥ 15 min (observed for the author's meter) almost none.
 - **REQ-16** After a poll with new data, the next poll waits at least interval − scan
@@ -145,11 +148,17 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
   (API calls are per container; usually it is the only meter), all **disabled by
   default**, always available (they also count failures):
   `api_calls`, `logins`, `token_refreshes`, `polls_new_data`, `polls_no_new_data`,
-  `polls_failed`, `polls_skipped` (total_increasing), `polls_per_new_value`, `new_data_ratio` (%),
+  `polls_failed`, `polls_skipped`, `missing_values` (total_increasing),
+  `polls_per_new_value`, `new_data_ratio` (%),
   `last_api_call` (timestamp). Unique IDs `<series>_api_<key>`.
 - **REQ-21** A poll has *new data* if the latest measurement time of at least one meter is
   later than the one seen before. `polls_per_new_value` = successful polls / polls with
   new data; `new_data_ratio` = polls with new data / successful polls.
+- **REQ-26** `missing_values` counts measurement intervals inexogy left out: when a
+  meter's latest measurement advances from T₀ to T₁, every raster slot T₀ + k·interval
+  < T₁ without a POWER point in the response counts once. Slots before the first point
+  of the response (outside the 3-h window) are not counted. Observed: ~4 % of intervals
+  (2026-10-26/28); energy readings are unaffected, only that interval's power is missing.
 - **REQ-22** Counters and last seen measurement times are stored in HA storage
   (`inexogy.<entry_id>.stats`), saved with 60 s delay, immediately on unload, and deleted
   when the entry is removed.

@@ -194,3 +194,44 @@ def test_container_offline():
     assert parser.container_offline(containers, "ddd") is None
     assert parser.container_offline(containers, "zzz") is None
     assert parser.container_offline([], "aaa") is None
+
+
+def _power(times: list[int], serial: str = "00000000") -> dict:
+    """POWER/CONSUMPTION series with points at the given quarter-hour indexes."""
+    values, previous = [], 0
+    for index in times:
+        values.append(_entry(T0 + index * QUARTER - previous, 1))
+        previous = T0 + index * QUARTER
+    return _series("POWER", "CONSUMPTION", values) | {"meterSerialNumber": serial}
+
+
+def _at(index: int) -> datetime:
+    return datetime.fromtimestamp((T0 + index * QUARTER) / 1000, tz=UTC)
+
+
+def test_interval_ignores_gaps():
+    # 0, 1, 2, 4: the gap at 3 must not turn the raster into 30 minutes.
+    meter = parser.parse_recent([_power([0, 1, 2, 4])]).meters["00000000"]
+    assert meter.measurement_interval == timedelta(minutes=15)
+    meter = parser.parse_recent([_power([0, 2])]).meters["00000000"]
+    assert meter.measurement_interval == timedelta(minutes=30)
+
+
+def test_interval_uses_feed_points_too():
+    feed = _series("POWER", "FEED", [_entry(T0 + QUARTER, -1)])
+    meter = parser.parse_recent([_power([0, 2]), feed]).meters["00000000"]
+    assert meter.measurement_interval == timedelta(minutes=15)
+
+
+def test_missing_intervals():
+    meter = parser.parse_recent([_power([0, 1, 2, 4, 7])]).meters["00000000"]
+    interval = timedelta(minutes=15)
+    assert meter.missing_intervals(_at(2), interval) == 3  # 3, 5, 6
+    assert meter.missing_intervals(_at(4), interval) == 2  # 5, 6
+    assert meter.missing_intervals(_at(6), interval) == 0
+    assert meter.missing_intervals(_at(7), interval) == 0
+    # Slots before the returned window are not counted.
+    assert meter.missing_intervals(_at(-3), interval) == 3
+    assert (
+        parser.parse_recent([RECENT[0]]).meters["00000000"].missing_intervals(_at(0), interval) == 0
+    )

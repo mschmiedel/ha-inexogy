@@ -112,15 +112,45 @@ class MeterData:
         return max(times) if times else None
 
     @property
+    def _power_times(self) -> list[datetime]:
+        """Sorted measurement times of all power intervals of this meter."""
+        return sorted(
+            {
+                point.time
+                for key in ((TYPE_POWER, SERIES_CONSUMPTION), (TYPE_POWER, SERIES_FEED))
+                if (series := self.series.get(key)) is not None
+                for point in series.points
+            }
+        )
+
+    @property
     def measurement_interval(self) -> timedelta | None:
-        """Spacing of the latest power intervals (usually 15 minutes)."""
-        for key in ((TYPE_POWER, SERIES_CONSUMPTION), (TYPE_POWER, SERIES_FEED)):
-            series = self.series.get(key)
-            if series and len(series.points) >= 2:
-                interval = series.points[-1].time - series.points[-2].time
-                if interval > timedelta(0):
-                    return interval
-        return None
+        """Smallest spacing of the power intervals (usually 15 minutes).
+
+        The smallest one, so that a missing interval is not mistaken for a
+        longer raster.
+        """
+        times = self._power_times
+        spacings = [b - a for a, b in zip(times, times[1:], strict=False) if b > a]
+        return min(spacings) if spacings else None
+
+    def missing_intervals(self, since: datetime, interval: timedelta) -> int:
+        """Count raster slots after ``since`` up to the latest one without a value.
+
+        Only slots inside the returned window are checked, so a long outage
+        on the Home Assistant side does not count.
+        """
+        times = self._power_times
+        if not times or interval <= timedelta(0):
+            return 0
+        present = set(times)
+        slot = since + interval
+        missing = 0
+        while slot < times[-1]:
+            if slot >= times[0] and slot not in present:
+                missing += 1
+            slot += interval
+        return missing
 
 
 @dataclass

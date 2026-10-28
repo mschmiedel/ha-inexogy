@@ -21,6 +21,8 @@ class ApiStats:
     polls_no_new_data: int = 0
     polls_failed: int = 0
     polls_skipped: int = 0
+    # Measurement intervals inexogy left out (REQ-26).
+    missing_values: int = 0
     last_api_call: datetime | None = None
 
     @property
