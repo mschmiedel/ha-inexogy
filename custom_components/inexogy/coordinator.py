@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_EMAIL
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -15,13 +17,14 @@ from homeassistant.util import dt as dt_util
 from .api import InexogyAuthError, InexogyClient, InexogyError
 from .const import (
     CONF_SERIES_ID,
+    CONTAINERS_INTERVAL,
     DEFAULT_MEASUREMENT_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     POLL_TOLERANCE,
     RECENT_LOOKBACK,
 )
-from .parser import RecentData
+from .parser import RecentData, container_offline
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,16 +69,24 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
         self._auth_store = auth_store(hass, entry.entry_id)
         self._last_measurements: dict[str, datetime] = {}
         self._last_new_data_at: datetime | None = None
+        # Offline flag of the container (REQ-25); only fetched while an entity needs it.
+        self.offline: bool | None = None
+        self._containers_users = 0
+        self._containers_fetched_at: datetime | None = None
         client.on_refresh_token_changed = self._schedule_auth_save
 
     async def async_load_auth(self) -> None:
         """Restore the refresh token of a previous run, if still valid."""
         stored = await self._auth_store.async_load()
-        if stored:
+        # A token of another account (email changed via reconfigure) is ignored.
+        if stored and stored.get("email") in (None, self.config_entry.data[CONF_EMAIL]):
             self.client.restore_refresh_token(stored.get("refresh_token"))
 
     def _auth_data(self) -> dict:
-        return {"refresh_token": self.client.refresh_token}
+        return {
+            "email": self.config_entry.data[CONF_EMAIL],
+            "refresh_token": self.client.refresh_token,
+        }
 
     def _schedule_auth_save(self) -> None:
         self._auth_store.async_delay_save(self._auth_data, 1)
@@ -112,7 +123,45 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
         """Write counters now, e.g. before the entry is unloaded."""
         await self._store.async_save(self._stats_data())
 
+    @callback
+    def track_containers(self) -> Callable[[], None]:
+        """Register an entity that needs container data; returns the release callback."""
+        self._containers_users += 1
+
+        @callback
+        def _release() -> None:
+            self._containers_users -= 1
+
+        return _release
+
+    async def async_refresh_containers(self) -> None:
+        """Fetch container data now and notify the entities."""
+        await self._async_update_containers(force=True)
+        self.async_update_listeners()
+
+    async def _async_update_containers(self, *, force: bool = False) -> None:
+        """Fetch the offline flag at most once per CONTAINERS_INTERVAL (REQ-25)."""
+        if not self._containers_users:
+            return
+        now = dt_util.utcnow()
+        if (
+            not force
+            and self._containers_fetched_at is not None
+            and now < self._containers_fetched_at + CONTAINERS_INTERVAL
+        ):
+            return
+        self._containers_fetched_at = now
+        try:
+            containers = await self.client.async_get_containers()
+        except InexogyError as err:
+            # Auth problems surface through the regular poll.
+            _LOGGER.debug("Fetching containers failed: %s", err)
+            self.offline = None
+            return
+        self.offline = container_offline(containers, self.series_id)
+
     async def _async_update_data(self) -> RecentData:
+        await self._async_update_containers()
         if self.data is not None and self._should_skip(self.data):
             self.stats.polls_skipped += 1
             self._store.async_delay_save(self._stats_data, STATS_SAVE_DELAY)
@@ -128,6 +177,16 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
             raise UpdateFailed(str(err)) from err
         self._count_poll(new_data=self._has_new_data(data))
         return data
+
+    @property
+    def last_new_data_at(self) -> datetime | None:
+        """Time of the last poll that brought new data (this run only)."""
+        return self._last_new_data_at
+
+    @property
+    def skips_next_poll(self) -> bool:
+        """Return whether a poll now would be skipped (REQ-15, REQ-16)."""
+        return self.data is not None and self._should_skip(self.data)
 
     def _should_skip(self, data: RecentData) -> bool:
         """Return whether the next poll cannot bring anything new (REQ-15, REQ-16)."""

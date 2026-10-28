@@ -39,8 +39,11 @@ container, so with several meters in one container they sit on the first meter.
 | Polls per new value | Successful polls per new measurement (ideal: 1.0) |
 | New data ratio | Share of successful polls that brought new data (%) |
 | Last API call | Timestamp of the latest request; a recorder/InfluxDB keeps one entry per call |
+| Meter connection | Binary sensor: *connected* unless inexogy marks the meter as offline |
 
 Counters survive restarts and are deleted together with the integration entry.
+*Meter connection* needs one extra API call (`/portal/containers`) per hour, made only
+while the sensor is enabled.
 
 The portal is polled every 5 minutes, but polls that cannot bring anything new are skipped
 without an API call:
@@ -78,6 +81,8 @@ Each config entry covers one container (usually one meter). Add the integration 
 with another meter number for further meters of the same account.
 
 If the password changes, Home Assistant asks for the new one (re-authentication).
+To change email or password yourself, use **Reconfigure** in the entry's menu; leave the
+password empty to keep it. The meter stays the same – add a new entry for another one.
 
 ## How it works
 
@@ -107,9 +112,9 @@ in the issue:
    account (usually `01 Login`, `03 User settings`, `05 Recent values`). Note whether the
    portal API itself answers as expected – status code and, redacted, the relevant part
    of the response. This tells whether the problem is in the integration or at inexogy.
-2. **Diagnostic sensors** (meter device → *Diagnostic*, enable them if needed): include
-   the values of API calls, logins, token refreshes, polls with/without new data, failed
-   polls and last API call, plus the state of *Last measurement*.
+2. **Diagnostics file**: *Settings → Devices & services → inexogy → ⋮ → Download
+   diagnostics* and attach the file. It contains the current values, polling state and
+   API statistics; email, password, container ID and meter serials are already redacted.
 
 Also add the integration version, the Home Assistant version and relevant log lines
 (debug logging: `logger: logs: custom_components.inexogy: debug`).

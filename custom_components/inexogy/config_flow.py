@@ -43,6 +43,17 @@ STEP_REAUTH_SCHEMA = vol.Schema(
     }
 )
 
+STEP_RECONFIGURE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_EMAIL): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="username")
+        ),
+        vol.Optional(CONF_PASSWORD): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD, autocomplete="current-password")
+        ),
+    }
+)
+
 
 class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for inexogy."""
@@ -140,5 +151,34 @@ class InexogyConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=STEP_REAUTH_SCHEMA,
             description_placeholders={"email": entry.data[CONF_EMAIL]},
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change email and/or password; the measurement series stays (REQ-06)."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            email = user_input[CONF_EMAIL].strip()
+            password = user_input.get(CONF_PASSWORD) or entry.data[CONF_PASSWORD]
+            _, error = await self._validate(email, password, entry.data[CONF_SERIES_ID])
+            if error is None:
+                # Keep a user-defined title; follow the email otherwise (REQ-02).
+                title = email if entry.title == entry.data[CONF_EMAIL] else entry.title
+                return self.async_update_reload_and_abort(
+                    entry,
+                    title=title,
+                    data_updates={CONF_EMAIL: email, CONF_PASSWORD: password},
+                )
+            errors["base"] = error
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_RECONFIGURE_SCHEMA,
+                {CONF_EMAIL: (user_input or entry.data)[CONF_EMAIL]},
+            ),
             errors=errors,
         )

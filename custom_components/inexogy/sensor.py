@@ -138,7 +138,8 @@ STATS_SENSORS: tuple[InexogyStatsSensorEntityDescription, ...] = (
 )
 
 
-def _meter_device_info(series_id: str, serial: str) -> DeviceInfo:
+def meter_device_info(series_id: str, serial: str) -> DeviceInfo:
+    """Return the device of one meter (REQ-12, REQ-14)."""
     return DeviceInfo(
         identifiers={(DOMAIN, meter_id(series_id, serial))},
         name=f"inexogy {serial}",
@@ -196,7 +197,7 @@ class InexogySensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
         self.entity_description = description
         self._serial = serial
         self._attr_unique_id = f"{meter_id(coordinator.series_id, serial)}_{description.key}"
-        self._attr_device_info = _meter_device_info(coordinator.series_id, serial)
+        self._attr_device_info = meter_device_info(coordinator.series_id, serial)
 
     @property
     def _meter(self) -> MeterData | None:
@@ -230,7 +231,7 @@ class InexogyStatsSensor(CoordinatorEntity[InexogyCoordinator], SensorEntity):
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{coordinator.series_id}_api_{description.key}"
-        self._attr_device_info = _meter_device_info(coordinator.series_id, serial)
+        self._attr_device_info = meter_device_info(coordinator.series_id, serial)
 
     @property
     def available(self) -> bool:

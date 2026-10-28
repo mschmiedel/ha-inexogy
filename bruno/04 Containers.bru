@@ -22,7 +22,9 @@ auth:bearer {
 docs {
   Used by the integration in the config flow when a meter number is entered
   (`async_get_containers`): finds the container whose `meterSerialNumbers` contains it.
-  Paged via `pageNo`/`pageSize`, `totalCount` gives the total.
+  Paged via `pageNo`/`pageSize`, `totalCount` gives the total. Also called at most
+  once per hour while the *Meter connection* diagnostic sensor is enabled, which
+  reads `offline` of the configured container (SPEC REQ-25).
 
   Per container: `id`, `meterSerialNumbers`, `measurementInterval` (ms),
   `lastMeasurementTime`, `offline`. `description` and `address` contain personal data.
