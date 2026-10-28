@@ -169,3 +169,13 @@ def test_next_due_uses_default_and_earliest_meter():
     ) == start + timedelta(minutes=15)
     # No measurements at all -> always poll.
     assert parser.parse_recent([RECENT[0]]).next_measurement_due(timedelta(minutes=15)) is None
+
+
+def test_recent_measurement_interval():
+    assert parser.parse_recent(RECENT).measurement_interval(timedelta(hours=1)) == timedelta(
+        minutes=15
+    )
+    single = [_series("POWER", "CONSUMPTION", [_entry(T0, 1)])]
+    assert parser.parse_recent(single).measurement_interval(timedelta(hours=1)) == timedelta(
+        hours=1
+    )
