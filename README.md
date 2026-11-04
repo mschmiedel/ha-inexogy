@@ -2,7 +2,7 @@
 
 # inexogy for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz/)
 [![Validate](https://github.com/mschmiedel/ha-inexogy/actions/workflows/validate.yml/badge.svg)](https://github.com/mschmiedel/ha-inexogy/actions/workflows/validate.yml)
 
 Unofficial Home Assistant integration for smart meters read out by
@@ -75,8 +75,11 @@ is not a real-time source.
 
 ### HACS
 
-1. HACS → ⋮ → *Custom repositories* → add `https://github.com/mschmiedel/ha-inexogy`, category *Integration*.
-2. Install **inexogy** and restart Home Assistant.
+1. In HACS, search for **inexogy** and download it.
+2. Restart Home Assistant.
+
+If your HACS does not list it yet, add it as a custom repository first: HACS → ⋮ →
+*Custom repositories* → `https://github.com/mschmiedel/ha-inexogy`, category *Integration*.
 
 ### Manual
 
