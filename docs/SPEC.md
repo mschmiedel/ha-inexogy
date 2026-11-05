@@ -34,7 +34,7 @@ documented public API with OAuth1 (used by the Home Assistant core integration).
 | Measurement interval | Raster of the measurements, 15 min (`measurementInterval` = 900000 ms). |
 | Measurement time | Quarter-hour timestamp a value belongs to (not the time it was delivered). |
 | Gap | Measurement interval missing in the portal data (no POWER point for that slot); see REQ-26. |
-| Delivery delay | Time between measurement time and availability in the API; observed 6–21 min, irregular at night. |
+| Delivery delay | Time between measurement time and availability in the API; usually 6–21 min, irregular at night, up to 16 h during backend disturbances. |
 | Poll | One call to the `recent` endpoint by the coordinator. |
 
 ## 3. External interface: inexogy portal API
@@ -69,8 +69,9 @@ A JSON list; each element is one series:
 | `values[]` | `time` (ms), `value`, `reading` – **delta-encoded**: first entry absolute, every following entry the difference to its predecessor |
 
 Units: energy `value`/`reading` in 10⁻¹⁰ kWh, power `value` in mW. Feed-in power is
-negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one entry per
-15-min interval of the requested window.
+negative. In `recent`, `ENERGY` has one entry (newest reading, regardless of `from`),
+`POWER` one entry per 15-min interval of the requested window – no `POWER` series at all
+if the window holds no interval yet (see REQ-10).
 
 ## 4. Functional requirements
 
@@ -106,7 +107,13 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
 
 ### Data and entities
 
-- **REQ-10** Poll `recent` every 5 minutes with a look-back of 3 hours.
+- **REQ-10** Poll `recent` every 5 minutes with a look-back of 3 hours, counted from the
+  newest point of the previous response (ENERGY included), not from the current time.
+  The first poll after start has no such point and counts from the current time. Reason:
+  `ENERGY` always holds the newest reading while `POWER` is limited to the window, so a
+  window ending now loses the whole `POWER` series once the delivery delay exceeds the
+  look-back (16 h observed in 2026-11). If that happens at start, the values return with
+  the second poll.
 - **REQ-15** Skip a poll (no API call) while no newer measurement can exist yet: a value
   for measurement time T is only available after T, so after the latest value T the next
   one cannot appear before T + interval. The interval is the smallest spacing of the
@@ -120,7 +127,7 @@ negative. In `recent`, `ENERGY` has one entry (current reading), `POWER` one ent
   interval − 1 min (15/5 min: one poll is skipped). New values arrive about one interval
   apart: in 87 observed arrivals, the poll right after new data was empty 86 times
   (2026-10-27/28). Saves ~⅓ of the calls; a value arriving within 10 min of the previous
-  one is shown ≤ 5 min later (no data is lost, `recent` covers 3 h). Skipped polls of
+  one is shown ≤ 5 min later (no data is lost, `recent` covers 3 h before the newest point). Skipped polls of
   REQ-15 and REQ-16 share the counter `polls_skipped`.
 - **REQ-11** Series are grouped per meter; serial variants that are suffixes of a longer
   serial belong to that meter, named after the longest variant. Series without serial
