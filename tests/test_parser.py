@@ -235,3 +235,45 @@ def test_missing_intervals():
     assert (
         parser.parse_recent([RECENT[0]]).meters["00000000"].missing_intervals(_at(0), interval) == 0
     )
+
+
+def test_latest_time_uses_energy_without_power() -> None:
+    # A delivery delay beyond the look-back leaves only the ENERGY reading.
+    data = parser.parse_recent(
+        [
+            {
+                "meterSerialNumber": "1ABC0012345678",
+                "type": "ENERGY",
+                "seriesType": "CONSUMPTION",
+                "values": [_entry(T0, 12_345_000_000_000)],
+            }
+        ]
+    )
+    meter = data.meters["1ABC0012345678"]
+    assert meter.last_measurement is None
+    assert data.latest_time == datetime.fromtimestamp(T0 / 1000, tz=UTC)
+
+
+def test_latest_time_is_newest_of_all_series() -> None:
+    data = parser.parse_recent(
+        [
+            {
+                "meterSerialNumber": "1ABC0012345678",
+                "type": "POWER",
+                "seriesType": "CONSUMPTION",
+                "values": [_entry(T0, 1000), _entry(QUARTER, 0)],
+            },
+            {
+                "meterSerialNumber": "1ABC0012345678",
+                "type": "ENERGY",
+                "seriesType": "CONSUMPTION",
+                "values": [_entry(T0 + 2 * QUARTER, 1)],
+            },
+        ]
+    )
+    expected = datetime.fromtimestamp((T0 + 2 * QUARTER) / 1000, tz=UTC)
+    assert data.latest_time == expected
+
+
+def test_latest_time_empty() -> None:
+    assert parser.parse_recent([]).latest_time is None

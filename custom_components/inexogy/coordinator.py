@@ -166,7 +166,7 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
             self.stats.polls_skipped += 1
             self._store.async_delay_save(self._stats_data, STATS_SAVE_DELAY)
             return self.data
-        from_ms = int((dt_util.utcnow() - RECENT_LOOKBACK).timestamp() * 1000)
+        from_ms = int(self._recent_from().timestamp() * 1000)
         try:
             data = await self.client.async_get_recent(self.series_id, from_ms)
         except InexogyAuthError as err:
@@ -177,6 +177,17 @@ class InexogyCoordinator(DataUpdateCoordinator[RecentData]):
             raise UpdateFailed(str(err)) from err
         self._count_poll(new_data=self._has_new_data(data))
         return data
+
+    def _recent_from(self) -> datetime:
+        """Return the start of the next ``recent`` window (REQ-10).
+
+        The portal only filters POWER by this time, while ENERGY always holds the
+        newest reading. Anchored at that reading, a delivery delay longer than the
+        look-back cannot empty the POWER series.
+        """
+        now = dt_util.utcnow()
+        latest = self.data.latest_time if self.data is not None else None
+        return min(now, latest or now) - RECENT_LOOKBACK
 
     @property
     def last_new_data_at(self) -> datetime | None:

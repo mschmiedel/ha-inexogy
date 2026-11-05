@@ -112,6 +112,12 @@ class MeterData:
         return max(times) if times else None
 
     @property
+    def latest_time(self) -> datetime | None:
+        """Time of the newest point of any series, ENERGY included."""
+        times = [point.time for series in self.series.values() if (point := series.latest)]
+        return max(times) if times else None
+
+    @property
     def _power_times(self) -> list[datetime]:
         """Sorted measurement times of all power intervals of this meter."""
         return sorted(
@@ -158,6 +164,12 @@ class RecentData:
     """Current values derived from the ``recent`` endpoint, per meter."""
 
     meters: dict[str, MeterData]
+
+    @property
+    def latest_time(self) -> datetime | None:
+        """Time of the newest point of all meters."""
+        times = [time for meter in self.meters.values() if (time := meter.latest_time)]
+        return max(times) if times else None
 
     def measurement_interval(self, default_interval: timedelta) -> timedelta:
         """Shortest measurement interval of all meters (fallback: default)."""

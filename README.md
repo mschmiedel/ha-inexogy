@@ -68,8 +68,9 @@ without an API call:
 - new values arrive about 15 minutes apart, so right after new data the next poll is
   skipped (saves about a third of the calls).
 
-Values arrive with the delay of the inexogy backend (typically 10–25 minutes), so this
-is not a real-time source.
+Values arrive with the delay of the inexogy backend (typically 10–25 minutes, in rare
+cases many hours), so this is not a real-time source. The power sensors always show the
+newest interval inexogy delivered; *Last measurement* tells how old it is.
 
 ## Installation
 
@@ -113,7 +114,8 @@ password empty to keep it. The meter stays the same – add a new entry for anot
   email and password. A 401 on a data request triggers one renewal as well.
 - The refresh token is stored in Home Assistant's storage (`.storage/inexogy.<entry>.auth`,
   readable only by Home Assistant), so a restart within its lifetime needs no new login.
-- Data: `GET /portal/measurement-series/<ID>/recent?from=<ms>&dimension=standard`.
+- Data: `GET /portal/measurement-series/<ID>/recent?from=<ms>&dimension=standard`, with
+  `from` 3 hours before the newest point of the previous response.
 - Value lists are delta-encoded: the first entry carries absolute `time`, `value`
   and `reading`, every following entry only the difference to its predecessor.
 - Units: energy in 10⁻¹⁰ kWh, power in mW. Feed-in power is reported negative.
