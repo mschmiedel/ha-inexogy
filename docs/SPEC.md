@@ -253,7 +253,14 @@ update from the coordinator.
 - CI (`.github/workflows/validate.yml`): HACS validation (no ignores), hassfest, ruff,
   pytest. Required checks on protected `main`; changes only via pull request.
 - Releases: bump `version` in `manifest.json`, merge, push tag `v<version>`;
-  `release.yml` checks tag = manifest version and creates the GitHub release.
+  `release.yml` checks tag = manifest version and creates the GitHub release with the
+  asset `inexogy.zip` (`scripts/build_zip.sh`: the tracked files of
+  `custom_components/inexogy` at the archive root; CI builds it on every push).
+  `hacs.json` names it (`zip_release`, `filename`), so HACS and the Home Assistant
+  Marketplace install that asset instead of the source archive. Reason: GitHub counts
+  downloads of release assets only, not of source archives – the asset makes installs
+  and updates countable (not unique users). Releases before 1.2.1 have no asset and can
+  no longer be installed through HACS.
   Tags `vX.Y.Z` become releases; `vX.Y.Z(a|b|rc)N` become pre-releases, which HACS
   offers only to users with beta versions enabled. Other tag formats fail.
 - Versioning: semantic, pre-releases in PEP 440 style (`1.1.0rc1` < `1.1.0`). New

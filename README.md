@@ -161,7 +161,9 @@ tests, issues or pull requests. Notes for AI coding agents: [`AGENTS.md`](AGENTS
 2. Push a matching tag on `main`: `git tag v1.1.0 && git push origin v1.1.0`.
 
 The release workflow checks that tag and manifest version match and creates the
-GitHub release:
+GitHub release with `inexogy.zip` attached. HACS and the Home Assistant Marketplace
+install that file (`zip_release` in `hacs.json`), so its download count shows how often
+the release was installed or updated. `scripts/build_zip.sh` builds it locally.
 
 | Tag | Release type | HACS |
 | --- | --- | --- |
@@ -170,6 +172,9 @@ GitHub release:
 
 Other tag formats are rejected. Pre-release versions sort before the final version
 (`1.1.0rc1` < `1.1.0`), so testers move on to the final release automatically.
+
+Releases before 1.2.1 have no `inexogy.zip` and cannot be installed through HACS any
+more; use the manual installation for them.
 
 ## Icon
 
