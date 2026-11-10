@@ -31,3 +31,5 @@ jobs:
       - run: pip install pytest ruff
       - run: ruff check .
       - run: pytest -q
+      - name: Build release zip
+        run: scripts/build_zip.sh

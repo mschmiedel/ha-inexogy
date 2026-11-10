@@ -34,4 +34,6 @@ jobs:
             echo "::error::Tag ${GITHUB_REF_NAME} is neither vX.Y.Z nor vX.Y.Z(a|b|rc)N"
             exit 1
           fi
-          gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes ${prerelease}
+          # The zip is attached on creation, so HACS never sees the release without it.
+          scripts/build_zip.sh HEAD inexogy.zip
+          gh release create "${GITHUB_REF_NAME}" inexogy.zip --title "${GITHUB_REF_NAME}" --generate-notes ${prerelease}
